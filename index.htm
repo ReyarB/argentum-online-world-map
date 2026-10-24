@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <title>Mapa mundo</title>
-<meta charset="windows-1252">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 @font-face{font-family:'Alegreya Sans AO';src:url('assets/fonts/Alegreya%20Sans%20AO.ttf') format('truetype');font-display:swap}
@@ -66,16 +66,16 @@ body.counts-on .map-count.layer-active{display:flex}
   <input id="search" type="text" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Buscar mapa, NPC, quest o recurso...">
   <div id="search-results"></div>
   <div id="layers">
-  <label><input id="showAreaNames" type="checkbox" checked> Nombres de áreas (186)</label>
+  <label><input id="showAreaNames" type="checkbox" checked> Nombres de Ã¡reas (186)</label>
   <label><input id="showCounts" type="checkbox"> Contadores por mapa</label>
   <span class="layer-title">Recursos</span>
-  <label><input id="layer-wood" type="checkbox"> Madera común (496)</label>
+  <label><input id="layer-wood" type="checkbox"> Madera comÃºn (496)</label>
   <label><input id="layer-pine" type="checkbox"> Madera de pino (0)</label>
-  <label><input id="layer-elven" type="checkbox"> Madera élfica (20)</label>
+  <label><input id="layer-elven" type="checkbox"> Madera Ã©lfica (20)</label>
   <label><input id="layer-iron" type="checkbox"> Hierro (29)</label>
   <label><input id="layer-silver" type="checkbox"> Plata (0)</label>
   <label><input id="layer-gold" type="checkbox"> Oro (0)</label>
-  <label><input id="layer-coal" type="checkbox"> Carbón (0)</label>
+  <label><input id="layer-coal" type="checkbox"> CarbÃ³n (0)</label>
   <label><input id="layer-blodium" type="checkbox"> Blodium (10)</label>
   <label><input id="layer-otherOre" type="checkbox"> Otros yacimientos (2)</label>
   <span class="layer-title">NPCs</span>
@@ -90,7 +90,7 @@ body.counts-on .map-count.layer-active{display:flex}
   <label><input id="layer-quest" type="checkbox"> NPCs de quest (104)</label>
   <span class="layer-title">Mundo</span>
   <label><input id="layer-portal" type="checkbox"> Portales (12)</label>
-  <label><input id="layer-poi" type="checkbox"> Puntos de interés (218)</label>
+  <label><input id="layer-poi" type="checkbox"> Puntos de interÃ©s (218)</label>
   </div>
 </div>
 <div id="viewport"><canvas id="mapCanvas"></canvas><div id="world">
@@ -194,7 +194,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 3">3</span>
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 9">9</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 3">3</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 10">10</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 10">10</span>
     </div>
   </div>
   <div class="map-cell" data-map="409" title="Mapa 409">
@@ -205,7 +205,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 1">1</span>
       <span class="map-count" data-layer="banker" style="background:#48a8ff" title="Banqueros: 2">2</span>
       <span class="map-count" data-layer="resurrector" style="background:#d29cff" title="Resucitadores: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 9">9</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 9">9</span>
     </div>
   </div>
   <div class="map-cell" data-map="410" title="Mapa 410">
@@ -327,7 +327,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 6">6</span>
       <span class="map-count" data-layer="banker" style="background:#48a8ff" title="Banqueros: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 14">14</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 4">4</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 4">4</span>
     </div>
   </div>
   <div class="map-cell" data-map="346" title="Mapa 346">
@@ -335,7 +335,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa346.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 9">9</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 9">9</span>
     </div>
   </div>
   <div class="map-cell" data-map="243" title="Mapa 243">
@@ -364,7 +364,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 1">1</span>
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="555" title="Mapa 555">
@@ -388,7 +388,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="resurrector" style="background:#d29cff" title="Resucitadores: 1">1</span>
       <span class="map-count" data-layer="guard" style="background:#8aa5ff" title="Guardias: 10">10</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 5">5</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 11">11</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 11">11</span>
     </div>
   </div>
   <div class="map-cell" data-map="355" title="Mapa 355">
@@ -403,7 +403,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa356.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 5">5</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="357" title="Mapa 357">
@@ -445,7 +445,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 1">1</span>
       <span class="map-count" data-layer="resurrector" style="background:#d29cff" title="Resucitadores: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 13">13</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="59" title="Mapa 59">
@@ -456,7 +456,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 9">9</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 28">28</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 18">18</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 18">18</span>
     </div>
   </div>
   <div class="map-cell" data-map="159" title="Mapa 159">
@@ -465,7 +465,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 3">3</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 20">20</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 4">4</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 4">4</span>
     </div>
   </div>
   <div class="map-cell" data-map="160" title="Mapa 160">
@@ -519,7 +519,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa429.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 12">12</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="430" title="Mapa 430">
@@ -554,7 +554,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 12">12</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="58" title="Mapa 58">
@@ -564,7 +564,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 32">32</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="158" title="Mapa 158">
@@ -572,7 +572,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa158.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 13">13</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="157" title="Mapa 157">
@@ -588,7 +588,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 1">1</span>
       <span class="map-count" data-layer="guard" style="background:#8aa5ff" title="Guardias: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="151" title="Mapa 151">
@@ -601,7 +601,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="resurrector" style="background:#d29cff" title="Resucitadores: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 2">2</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 6">6</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 8">8</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 8">8</span>
     </div>
   </div>
   <div class="map-cell" data-map="150" title="Mapa 150">
@@ -660,14 +660,14 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa437.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 5">5</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="344" title="Mapa 344">
     <img class="base-map" data-src="minimapas/Mapa344.webp" alt="Mapa 344" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa344.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera élfica: 3">3</span>
+      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera Ã©lfica: 3">3</span>
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 5">5</span>
     </div>
@@ -676,7 +676,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa343.webp" alt="Mapa 343" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa343.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera élfica: 2">2</span>
+      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera Ã©lfica: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 3">3</span>
     </div>
   </div>
@@ -686,14 +686,14 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 3">3</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 11">11</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="57" title="Mapa 57">
     <img class="base-map" data-src="minimapas/Mapa57.webp" alt="Mapa 57" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa57.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 135">135</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 135">135</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 8">8</span>
     </div>
   </div>
@@ -751,7 +751,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 10">10</span>
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 2">2</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="440" title="Mapa 440">
@@ -763,7 +763,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="banker" style="background:#48a8ff" title="Banqueros: 1">1</span>
       <span class="map-count" data-layer="resurrector" style="background:#d29cff" title="Resucitadores: 1">1</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 4">4</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 4">4</span>
     </div>
   </div>
   <div class="map-cell" data-map="441" title="Mapa 441">
@@ -787,7 +787,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa444.webp" alt="Mapa 444" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa444.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera élfica: 3">3</span>
+      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera Ã©lfica: 3">3</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 5">5</span>
     </div>
   </div>
@@ -795,7 +795,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa239.webp" alt="Mapa 239" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa239.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera élfica: 5">5</span>
+      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera Ã©lfica: 5">5</span>
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 9">9</span>
     </div>
@@ -804,7 +804,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa237.webp" alt="Mapa 237" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa237.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera élfica: 2">2</span>
+      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera Ã©lfica: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 10">10</span>
       <span class="map-count" data-layer="portal" style="background:#ff71cf" title="Portales: 1">1</span>
     </div>
@@ -821,7 +821,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa56.webp" alt="Mapa 56" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa56.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 105">105</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 105">105</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 6">6</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
     </div>
@@ -839,7 +839,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa192.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 11">11</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="245" title="Mapa 245">
@@ -923,7 +923,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa238.webp" alt="Mapa 238" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa238.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera élfica: 2">2</span>
+      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera Ã©lfica: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 2">2</span>
     </div>
   </div>
@@ -931,7 +931,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa236.webp" alt="Mapa 236" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa236.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera élfica: 3">3</span>
+      <span class="map-count" data-layer="elven" style="background:#bd7cff" title="Madera Ã©lfica: 3">3</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 3">3</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
     </div>
@@ -993,7 +993,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa453.webp" alt="Mapa 453" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa453.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 2">2</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 2">2</span>
     </div>
   </div>
   <div class="map-cell" data-map="454" title="Mapa 454">
@@ -1023,7 +1023,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa457.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 4">4</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="458" title="Mapa 458">
@@ -1040,7 +1040,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 10">10</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="235" title="Mapa 235">
@@ -1076,7 +1076,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 7">7</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 10">10</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="186" title="Mapa 186">
@@ -1185,7 +1185,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 5">5</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="86" title="Mapa 86">
@@ -1193,7 +1193,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa86.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 3">3</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 2">2</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 2">2</span>
     </div>
   </div>
   <div class="map-cell" data-map="180" title="Mapa 180">
@@ -1303,7 +1303,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 5">5</span>
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 7">7</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 2">2</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 2">2</span>
     </div>
   </div>
   <div class="map-cell" data-map="85" title="Mapa 85">
@@ -1325,7 +1325,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 3">3</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="251" title="Mapa 251">
@@ -1416,7 +1416,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa83.webp" alt="Mapa 83" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa83.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 31">31</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 31">31</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 7">7</span>
     </div>
   </div>
@@ -1424,7 +1424,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa84.webp" alt="Mapa 84" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa84.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 16">16</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 16">16</span>
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 6">6</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 10">10</span>
     </div>
@@ -1534,7 +1534,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa81.webp" alt="Mapa 81" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa81.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 32">32</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 32">32</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 9">9</span>
     </div>
   </div>
@@ -1544,7 +1544,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 9">9</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="202" title="Mapa 202">
@@ -1577,7 +1577,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 9">9</span>
       <span class="map-count" data-layer="banker" style="background:#48a8ff" title="Banqueros: 2">2</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 3">3</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 3">3</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 3">3</span>
     </div>
   </div>
   <div class="map-cell" data-map="489" title="Mapa 489">
@@ -1592,11 +1592,11 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa106.webp" alt="Mapa 106" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa106.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 4">4</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 4">4</span>
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 6">6</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="491" title="Mapa 491">
@@ -1628,14 +1628,14 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 4">4</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 5">5</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="9" title="Mapa 9">
     <img class="base-map" data-src="minimapas/Mapa9.webp" alt="Mapa 9" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa9.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 42">42</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 42">42</span>
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 7">7</span>
     </div>
@@ -1644,9 +1644,9 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa8.webp" alt="Mapa 8" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa8.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 2">2</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 7">7</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="1" title="Mapa 1">
@@ -1660,7 +1660,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="guard" style="background:#8aa5ff" title="Guardias: 6">6</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 2">2</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 10">10</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 20">20</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 20">20</span>
     </div>
   </div>
   <div class="map-cell" data-map="11" title="Mapa 11">
@@ -1675,7 +1675,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa12.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 12">12</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="13" title="Mapa 13">
@@ -1748,9 +1748,9 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa498.webp" alt="Mapa 498" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa498.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 16">16</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 16">16</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 12">12</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="290" title="Mapa 290">
@@ -1769,7 +1769,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa38.webp" alt="Mapa 38" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa38.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 29">29</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 29">29</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 16">16</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
     </div>
@@ -1778,9 +1778,9 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa39.webp" alt="Mapa 39" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa39.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 12">12</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 12">12</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 14">14</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="2" title="Mapa 2">
@@ -1788,7 +1788,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa2.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 18">18</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="14" title="Mapa 14">
@@ -1809,7 +1809,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa19.webp" alt="Mapa 19" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa19.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 25">25</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 25">25</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 9">9</span>
     </div>
   </div>
@@ -1819,7 +1819,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 5">5</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 7">7</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="20" title="Mapa 20">
@@ -1869,7 +1869,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa501.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 12">12</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="502" title="Mapa 502">
@@ -1888,7 +1888,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa282.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 4">4</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="226" title="Mapa 226">
@@ -1904,7 +1904,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 5">5</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 6">6</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="36" title="Mapa 36">
@@ -1913,7 +1913,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 5">5</span>
       <span class="map-count" data-layer="portal" style="background:#ff71cf" title="Portales: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="3" title="Mapa 3">
@@ -1922,7 +1922,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 10">10</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="25" title="Mapa 25">
@@ -1945,9 +1945,9 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa27.webp" alt="Mapa 27" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa27.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 22">22</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 22">22</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 7">7</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="97" title="Mapa 97">
@@ -1978,9 +1978,9 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa506.webp" alt="Mapa 506" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa506.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 12">12</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 12">12</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 4">4</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="152" title="Mapa 152">
@@ -2022,7 +2022,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 1">1</span>
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="225" title="Mapa 225">
@@ -2058,7 +2058,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 6">6</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="23" title="Mapa 23">
@@ -2125,7 +2125,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="guard" style="background:#8aa5ff" title="Guardias: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 2">2</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 6">6</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 5">5</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 5">5</span>
     </div>
   </div>
   <div class="map-cell" data-map="518" title="Mapa 518">
@@ -2167,7 +2167,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 2">2</span>
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 4">4</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 3">3</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 3">3</span>
     </div>
   </div>
   <div class="map-cell" data-map="34" title="Mapa 34">
@@ -2180,7 +2180,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="resurrector" style="background:#d29cff" title="Resucitadores: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 4">4</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 11">11</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 22">22</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 22">22</span>
     </div>
   </div>
   <div class="map-cell" data-map="32" title="Mapa 32">
@@ -2201,7 +2201,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa28.webp" alt="Mapa 28" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa28.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera común: 13">13</span>
+      <span class="map-count" data-layer="wood" style="background:#2cff72" title="Madera comÃºn: 13">13</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 12">12</span>
     </div>
   </div>
@@ -2309,7 +2309,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 18">18</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="91" title="Mapa 91">
@@ -2325,7 +2325,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 5">5</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 16">16</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 4">4</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 4">4</span>
     </div>
   </div>
   <div class="map-cell" data-map="92" title="Mapa 92">
@@ -2342,7 +2342,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="532" title="Mapa 532">
@@ -2416,7 +2416,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 5">5</span>
       <span class="map-count" data-layer="banker" style="background:#48a8ff" title="Banqueros: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 30">30</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 6">6</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 6">6</span>
     </div>
   </div>
   <div class="map-cell" data-map="196" title="Mapa 196">
@@ -2427,7 +2427,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 5">5</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 21">21</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 9">9</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 9">9</span>
     </div>
   </div>
   <div class="map-cell" data-map="197" title="Mapa 197">
@@ -2437,7 +2437,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 6">6</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="223" title="Mapa 223">
@@ -2511,7 +2511,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 1">1</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 14">14</span>
       <span class="map-count" data-layer="portal" style="background:#ff71cf" title="Portales: 1">1</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="214" title="Mapa 214">
@@ -2522,7 +2522,7 @@ body.counts-on .map-count.layer-active{display:flex}
       <span class="map-count" data-layer="merchant" style="background:#4ed6b4" title="Comerciantes: 10">10</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 5">5</span>
       <span class="map-count" data-layer="quest" style="background:#ffd43b" title="NPCs de quest: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 12">12</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 12">12</span>
     </div>
   </div>
   <div class="map-cell" data-map="215" title="Mapa 215">
@@ -2552,7 +2552,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa219.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 15">15</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 5">5</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 5">5</span>
     </div>
   </div>
   <div class="map-cell" data-map="220" title="Mapa 220">
@@ -2560,7 +2560,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa220.png" alt="" draggable="false">
     <div class="map-counts">
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 2">2</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 5">5</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 5">5</span>
     </div>
   </div>
   <div class="map-cell" data-map="221" title="Mapa 221">
@@ -2634,7 +2634,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <div class="map-counts">
       <span class="map-count" data-layer="npc" style="background:#35cfff" title="Otros NPCs: 2">2</span>
       <span class="map-count" data-layer="hostile" style="background:#ff4242" title="NPCs hostiles: 8">8</span>
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="547" title="Mapa 547">
@@ -2695,7 +2695,7 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="base-map" data-src="minimapas/Mapa380.webp" alt="Mapa 380" draggable="false">
     <img class="overflow-map" data-src="desbordes/Mapa380.png" alt="" draggable="false">
     <div class="map-counts">
-      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interés: 1">1</span>
+      <span class="map-count" data-layer="poi" style="background:#ffffff" title="Puntos de interÃ©s: 1">1</span>
     </div>
   </div>
   <div class="map-cell" data-map="114" title="Mapa 114">
@@ -2722,19 +2722,19 @@ body.counts-on .map-count.layer-active{display:flex}
     <img class="overflow-map" data-src="desbordes/Mapa554.png" alt="" draggable="false">
   </div>
 </div></div>
-<aside id="details"><div id="detailsHeader"><b id="detailsTitle"></b><button id="toggleDetails" class="panel-toggle" title="Reducir información" aria-label="Reducir información">&#9650;</button></div><div id="detailsContent"></div></aside>
+<aside id="details"><div id="detailsHeader"><b id="detailsTitle"></b><button id="toggleDetails" class="panel-toggle" title="Reducir informaciÃ³n" aria-label="Reducir informaciÃ³n">&#9650;</button></div><div id="detailsContent"></div></aside>
 <div id="help">Rueda: zoom &nbsp; | &nbsp; Arrastrar: mover &nbsp; | &nbsp; Doble clic: ver detalles</div>
 <div id="markerTooltip" role="tooltip"></div>
 <div id="settingsBackdrop" aria-hidden="true">
   <section id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-    <h2 id="settingsTitle">Configuración del mapa</h2>
-    <p class="settings-help">Los valores están limitados a rangos seguros. F1 abre o cierra este menú.</p>
-    <div class="setting-row"><label for="settingFace">Tamaño de caras</label><input id="settingFace" type="range" min="5" max="40" step="1"><output id="settingFaceValue"></output></div>
-    <div class="setting-row"><label for="settingBody">Tamaño de cuerpos</label><input id="settingBody" type="range" min="30" max="120" step="5"><output id="settingBodyValue"></output></div>
+    <h2 id="settingsTitle">ConfiguraciÃ³n del mapa</h2>
+    <p class="settings-help">Los valores estÃ¡n limitados a rangos seguros. F1 abre o cierra este menÃº.</p>
+    <div class="setting-row"><label for="settingFace">TamaÃ±o de caras</label><input id="settingFace" type="range" min="5" max="40" step="1"><output id="settingFaceValue"></output></div>
+    <div class="setting-row"><label for="settingBody">TamaÃ±o de cuerpos</label><input id="settingBody" type="range" min="30" max="120" step="5"><output id="settingBodyValue"></output></div>
     <div class="setting-row"><label for="settingObject">Recursos y objetos</label><input id="settingObject" type="range" min="40" max="160" step="5"><output id="settingObjectValue"></output></div>
-    <div class="setting-row"><label for="settingAreaSize">Nombres de áreas</label><input id="settingAreaSize" type="range" min="50" max="160" step="5"><output id="settingAreaSizeValue"></output></div>
-    <div class="setting-row"><label for="settingTooltip">Espera de información</label><input id="settingTooltip" type="range" min="300" max="3000" step="100"><output id="settingTooltipValue"></output></div>
-    <div class="setting-row"><label for="settingFont">Fuente de áreas</label><select id="settingFont"><option value="game">Fuente gráfica del juego</option><option value="alegreya">Alegreya Sans AO</option><option value="segoe">Segoe UI</option></select></div>
+    <div class="setting-row"><label for="settingAreaSize">Nombres de Ã¡reas</label><input id="settingAreaSize" type="range" min="50" max="160" step="5"><output id="settingAreaSizeValue"></output></div>
+    <div class="setting-row"><label for="settingTooltip">Espera de informaciÃ³n</label><input id="settingTooltip" type="range" min="300" max="3000" step="100"><output id="settingTooltipValue"></output></div>
+    <div class="setting-row"><label for="settingFont">Fuente de Ã¡reas</label><select id="settingFont"><option value="game">Fuente grÃ¡fica del juego</option><option value="alegreya">Alegreya Sans AO</option><option value="segoe">Segoe UI</option></select></div>
     <div class="settings-actions"><button id="resetSettings">Restaurar predeterminados</button><button id="saveSettings">Guardar y cerrar</button></div>
   </section>
 </div>
@@ -2782,7 +2782,7 @@ document.getElementById('fit').onclick=fit;
 document.getElementById('actual').onclick=()=>zoomAt(innerWidth/2,innerHeight/2,1);
 function togglePanel(panel,button,expandedLabel,collapsedLabel){const collapsed=panel.classList.toggle('collapsed');button.textContent=collapsed?'\u25bc':'\u25b2';button.title=button.ariaLabel=collapsed?collapsedLabel:expandedLabel;}
 document.getElementById('toggleToolbar').onclick=()=>togglePanel(toolbar,document.getElementById('toggleToolbar'),'Reducir controles','Desplegar controles');
-document.getElementById('toggleDetails').onclick=()=>togglePanel(details,document.getElementById('toggleDetails'),'Reducir información','Desplegar información');
+document.getElementById('toggleDetails').onclick=()=>togglePanel(details,document.getElementById('toggleDetails'),'Reducir informaciÃ³n','Desplegar informaciÃ³n');
 function updateCountVisibility(){document.body.classList.toggle('counts-on',document.getElementById('showCounts').checked);document.querySelectorAll('.map-count').forEach(badge=>badge.classList.toggle('layer-active',document.getElementById('layer-'+badge.dataset.layer).checked));}
 document.getElementById('showCounts').onchange=updateCountVisibility;LAYERS.forEach(layer=>document.getElementById('layer-'+layer.id).onchange=()=>{updateCountVisibility();scheduleRender();});
 document.getElementById('showAreaNames').onchange=scheduleRender;
@@ -2795,13 +2795,13 @@ function closeSettings(save=true){if(save)saveCurrentSettings();settingsBackdrop
 Object.values(SETTING_INPUTS).forEach(input=>input.addEventListener('input',applySettingsControls));settingFont.addEventListener('change',()=>{applySettingsControls();if(document.fonts&&SETTINGS.areaFont==='alegreya')document.fonts.load("700 24px 'Alegreya Sans AO'").then(scheduleRender);});
 document.getElementById('resetSettings').onclick=()=>{SETTINGS={...DEFAULT_SETTINGS};syncSettingsControls();saveCurrentSettings();hideMarkerTooltip();scheduleRender();};document.getElementById('saveSettings').onclick=()=>closeSettings(true);settingsBackdrop.addEventListener('pointerdown',event=>{if(event.target===settingsBackdrop)closeSettings(true);});syncSettingsControls();
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
-function markerTooltipHtml(hit){const p=hit.point,layer=hit.layer,isObject=layer.kind==='object',identity=isObject?`Objeto ${p.obj||''}`:`NPC ${p.npc||''}`,title=p.name||p.resourceName||identity,lines=[`${escapeHtml(layer.label)} · Mapa ${hit.mapId}`,`X ${p.x}, Y ${p.y}${identity?' · '+escapeHtml(identity):''}`];if(p.resourceName)lines.push(`Recurso: ${escapeHtml(p.resourceName)}`);if(layer.kind==='quest'){const quests=NPC_QUESTS[p.npc]||[];if(quests.length)lines.push(`Quests: ${quests.map(q=>escapeHtml(q.name)).join(', ')}`);}return `<strong>${escapeHtml(title)}</strong>${lines.join('<br>')}`;}
+function markerTooltipHtml(hit){const p=hit.point,layer=hit.layer,isObject=layer.kind==='object',identity=isObject?`Objeto ${p.obj||''}`:`NPC ${p.npc||''}`,title=p.name||p.resourceName||identity,lines=[`${escapeHtml(layer.label)} Â· Mapa ${hit.mapId}`,`X ${p.x}, Y ${p.y}${identity?' Â· '+escapeHtml(identity):''}`];if(p.resourceName)lines.push(`Recurso: ${escapeHtml(p.resourceName)}`);if(layer.kind==='quest'){const quests=NPC_QUESTS[p.npc]||[];if(quests.length)lines.push(`Quests: ${quests.map(q=>escapeHtml(q.name)).join(', ')}`);}return `<strong>${escapeHtml(title)}</strong>${lines.join('<br>')}`;}
 function hideMarkerTooltip(){clearTimeout(hoverTimer);hoverTimer=0;hoverKey='';markerTooltip.style.display='none';}
 function markerAt(x,y){for(let index=VISIBLE_MARKERS.length-1;index>=0;index--){const marker=VISIBLE_MARKERS[index];if(x>=marker.left&&x<=marker.right&&y>=marker.top&&y<=marker.bottom)return marker;}return null;}
 viewport.addEventListener('pointermove',event=>{if(dragging){hideMarkerTooltip();return;}const hit=markerAt(event.clientX,event.clientY);if(!hit){hideMarkerTooltip();return;}if(hit.key===hoverKey)return;clearTimeout(hoverTimer);markerTooltip.style.display='none';hoverKey=hit.key;const left=Math.min(event.clientX+14,Math.max(8,innerWidth-255)),top=Math.min(event.clientY+14,Math.max(8,innerHeight-120));hoverTimer=setTimeout(()=>{if(hoverKey!==hit.key)return;markerTooltip.innerHTML=markerTooltipHtml(hit);markerTooltip.style.left=`${left}px`;markerTooltip.style.top=`${top}px`;markerTooltip.style.display='block';},SETTINGS.tooltipDelay);});
 viewport.addEventListener('pointerleave',hideMarkerTooltip);viewport.addEventListener('pointerdown',hideMarkerTooltip);viewport.addEventListener('wheel',hideMarkerTooltip,{passive:true});
-function layerDetails(layer,id){const points=layer.maps[id]||[];if(!points.length)return '';const rows=points.slice(0,80).map(p=>{let text;if(layer.kind==='object'&&p.iconObj){text=`X ${p.x}, Y ${p.y}: - ${escapeHtml(p.name||('Objeto '+p.obj))}`;if(p.resourceName)text+=` - Recurso: ${escapeHtml(p.resourceName)}`;}else{const identity=layer.kind==='object'?'obj. '+p.obj:'NPC '+p.npc;text=`X ${p.x}, Y ${p.y}: ${identity}${p.name?' - '+escapeHtml(p.name):''}`;}if(layer.kind==='quest'){const offers=NPC_QUESTS[p.npc]||[];offers.forEach(q=>{text+=`<div style="margin:4px 0 5px 12px;color:#ddd"><b>Quest ${q.id}: ${escapeHtml(q.name)}</b><br>${escapeHtml(q.desc)}<br>Nivel ${q.level}${String(q.maxLevel)!=='0'?' a '+q.maxLevel:''} · EXP ${q.exp} · Oro ${q.gold}${String(q.repeatable)!=='0'?' · Repetible':''}</div>`;});}return text;}).join('<br>');return `<strong style="color:${layer.color}">${escapeHtml(layer.label)}: ${points.length}</strong><br>${rows}${points.length>80?'<br>... y '+(points.length-80)+' más':''}`;}
-function showMapDetails(cell){const id=Number(cell.dataset.map),info=MAP_INFO[id]||{},exits=CONNECTIONS[id]||[];document.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));cell.classList.add('selected');details.style.display='block';detailsTitle.textContent=`Mapa ${id}${info.name?' - '+info.name:''}`;const unsafe=Number(info.pk)!==0,safety=`<strong style="color:${unsafe?'#ff6565':'#71d99b'}">${unsafe?'Mapa inseguro':'Mapa seguro'}</strong>`,status=`Zona: ${escapeHtml(info.zone||'Sin dato')} · Terreno: ${escapeHtml(info.terrain||'Sin dato')}<br>Seguridad: ${safety} · Combate: ${unsafe?'PK':'No PK'}${info.restrict?' · Restricción: '+escapeHtml(info.restrict):''}`;const exitHtml=exits.length?`<hr><strong>Conexiones (${exits.length})</strong><br>${exits.map(map=>`<button class="go-map" data-map="${map}">Mapa ${map}</button>`).join(' ')}`:'<hr><strong>Conexiones: 0</strong>';const sections=LAYERS.map(layer=>layerDetails(layer,id)).filter(Boolean);detailsContent.innerHTML=`<div id="detailsSummary">${status}</div><div id="detailsExpanded">${exitHtml}${sections.length?'<hr>'+sections.join('<hr>'):''}</div>`;detailsContent.querySelectorAll('.go-map').forEach(button=>button.onclick=()=>focusMap(Number(button.dataset.map)));}
+function layerDetails(layer,id){const points=layer.maps[id]||[];if(!points.length)return '';const rows=points.slice(0,80).map(p=>{let text;if(layer.kind==='object'&&p.iconObj){text=`X ${p.x}, Y ${p.y}: - ${escapeHtml(p.name||('Objeto '+p.obj))}`;if(p.resourceName)text+=` - Recurso: ${escapeHtml(p.resourceName)}`;}else{const identity=layer.kind==='object'?'obj. '+p.obj:'NPC '+p.npc;text=`X ${p.x}, Y ${p.y}: ${identity}${p.name?' - '+escapeHtml(p.name):''}`;}if(layer.kind==='quest'){const offers=NPC_QUESTS[p.npc]||[];offers.forEach(q=>{text+=`<div style="margin:4px 0 5px 12px;color:#ddd"><b>Quest ${q.id}: ${escapeHtml(q.name)}</b><br>${escapeHtml(q.desc)}<br>Nivel ${q.level}${String(q.maxLevel)!=='0'?' a '+q.maxLevel:''} Â· EXP ${q.exp} Â· Oro ${q.gold}${String(q.repeatable)!=='0'?' Â· Repetible':''}</div>`;});}return text;}).join('<br>');return `<strong style="color:${layer.color}">${escapeHtml(layer.label)}: ${points.length}</strong><br>${rows}${points.length>80?'<br>... y '+(points.length-80)+' mÃ¡s':''}`;}
+function showMapDetails(cell){const id=Number(cell.dataset.map),info=MAP_INFO[id]||{},exits=CONNECTIONS[id]||[];document.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));cell.classList.add('selected');details.style.display='block';detailsTitle.textContent=`Mapa ${id}${info.name?' - '+info.name:''}`;const unsafe=Number(info.pk)!==0,safety=`<strong style="color:${unsafe?'#ff6565':'#71d99b'}">${unsafe?'Mapa inseguro':'Mapa seguro'}</strong>`,status=`Zona: ${escapeHtml(info.zone||'Sin dato')} Â· Terreno: ${escapeHtml(info.terrain||'Sin dato')}<br>Seguridad: ${safety} Â· Combate: ${unsafe?'PK':'No PK'}${info.restrict?' Â· RestricciÃ³n: '+escapeHtml(info.restrict):''}`;const exitHtml=exits.length?`<hr><strong>Conexiones (${exits.length})</strong><br>${exits.map(map=>`<button class="go-map" data-map="${map}">Mapa ${map}</button>`).join(' ')}`:'<hr><strong>Conexiones: 0</strong>';const sections=LAYERS.map(layer=>layerDetails(layer,id)).filter(Boolean);detailsContent.innerHTML=`<div id="detailsSummary">${status}</div><div id="detailsExpanded">${exitHtml}${sections.length?'<hr>'+sections.join('<hr>'):''}</div>`;detailsContent.querySelectorAll('.go-map').forEach(button=>button.onclick=()=>focusMap(Number(button.dataset.map)));}
 function focusMap(id){const index=mapCells.findIndex(cell=>Number(cell.dataset.map)===Number(id));if(index<0)return;const col=index%COLS,row=Math.floor(index/COLS);scale=Math.max(scale,.35);panX=viewport.clientWidth/2-(col+.5)*TILE_W*scale;panY=viewport.clientHeight/2-(row+.5)*TILE_H*scale;apply();showMapDetails(mapCells[index]);}
 function selectMapCell(cell){document.querySelectorAll('.selected').forEach(node=>node.classList.remove('selected'));cell.classList.add('selected');}
 function mapCellAt(clientX,clientY){const element=document.elementFromPoint(clientX,clientY);return element?element.closest('.map-cell'):null;}
