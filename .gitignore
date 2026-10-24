@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+.cache/
+workspace/
+dist-web/
+build/
+dist/
+*.spec
+*.exe
+mapa_mundo.ini
+map_content.sqlite*
+
