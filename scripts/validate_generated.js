@@ -29,4 +29,4 @@ if (scripts === 0) throw new Error("No se encontró JavaScript embebido");
 if (missing.length > 0) {
   throw new Error(`Referencias inexistentes:\n${missing.join("\n")}`);
 }
-console.log(JSON.stringify({ scripts, references, missing: missing.length }));
+console.log(JSON.stringify({ scripts, references: references.length, missing: missing.length }));
