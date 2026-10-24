@@ -67,7 +67,7 @@ exclusivamente en `dist-web/`.
 
 ## Probar la página
 
-1. Abrir `dist-web/index.htm`.
+1. Abrir `dist-web/index.html` (o `index.htm` para compatibilidad local).
 2. Probar zoom, arrastre, búsqueda y filtros.
 3. Dejar el puntero un segundo sobre NPC, recurso, portal o punto de interés.
 4. Hacer doble clic sobre un mapa y verificar sus detalles.
@@ -93,7 +93,7 @@ Antes de confirmar cambios:
 ```powershell
 py -3.12 -m py_compile src/mapa_mundo.py scripts/build_web.py scripts/migrate_workspace.py
 py -3.12 scripts/build_web.py --resources ..\Recursos
-node scripts/validate_generated.js dist-web/index.htm
+node scripts/validate_generated.js dist-web/index.html
 ```
 
 El constructor falla si falta un mapa, la fuente gráfica o una dependencia
@@ -102,7 +102,11 @@ necesaria para la publicación.
 ## Publicación
 
 `dist-web/` es el único directorio que debe enviarse al alojamiento estático.
-La rama principal conserva solo código y documentación. La publicación
-automática se agregará cuando el WE produzca `workspace/` y la base SQLite fuera
-de `Recursos`.
+La rama principal conserva solo código y documentación; la rama `gh-pages`
+contiene exclusivamente la última salida publicada. GitHub Pages sirve esa
+rama desde su raíz.
+
+Para publicar una actualización, primero reconstruya y valide `dist-web/` con
+los comandos anteriores. Después reemplace el contenido de `gh-pages` por esa
+salida. No confirme `workspace/` ni `dist-web/` en `main`.
 

@@ -89,6 +89,7 @@ def copy_runtime_assets(resources: Path, output: Path) -> None:
 def validate_output(output: Path, map_ids: set[int]) -> dict[str, int]:
     required = [
         output / "index.htm",
+        output / "index.html",
         output / "assets" / "graphics" / "19054.png",
         output / "assets" / "fonts" / "Alegreya Sans AO.ttf",
     ]
@@ -155,6 +156,7 @@ def main() -> int:
     app.database_file = database
     app.data = data
     index_path = app.write_world_index()
+    shutil.copy2(index_path, output / "index.html")
     stats = validate_output(output, placed_map_ids)
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
