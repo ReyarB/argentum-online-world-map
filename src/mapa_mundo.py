@@ -1294,7 +1294,7 @@ class MapaMundoApp(tk.Tk):
             '<html lang="es">',
             "<head>",
             "<title>Mapa mundo</title>",
-            '<meta charset="windows-1252">',
+            '<meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width,initial-scale=1">',
             "<style>",
             "@font-face{font-family:'Alegreya Sans AO';src:url('assets/fonts/Alegreya%20Sans%20AO.ttf') format('truetype');font-display:swap}",
@@ -1488,7 +1488,7 @@ class MapaMundoApp(tk.Tk):
             "",
         ])
         temporary = target.with_suffix(".htm.tmp")
-        with temporary.open("w", encoding="cp1252", newline="") as output:
+        with temporary.open("w", encoding="utf-8", newline="") as output:
             output.write("\r\n".join(lines))
         temporary.replace(target)
         return target

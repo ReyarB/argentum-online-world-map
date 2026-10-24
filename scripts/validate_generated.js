@@ -6,6 +6,13 @@ const html = fs.readFileSync(htmlPath, "utf8");
 let position = 0;
 let scripts = 0;
 
+if (!/<meta\s+charset=["']?utf-8["']?\s*\/?>/i.test(html)) {
+  throw new Error("El HTML generado no declara UTF-8");
+}
+if (html.includes("\uFFFD")) {
+  throw new Error("El HTML generado contiene caracteres de reemplazo por codificación inválida");
+}
+
 for (;;) {
   const start = html.indexOf("<script", position);
   if (start < 0) break;
