@@ -114,12 +114,18 @@ def convert_maps(source: Path, overflows: Path, target: Path,
 def copy_runtime_assets(resources: Path, output: Path) -> None:
     graphics_target = output / "assets" / "graphics"
     fonts_target = output / "assets" / "fonts"
+    ui_target = output / "assets" / "ui"
     graphics_target.mkdir(parents=True, exist_ok=True)
     fonts_target.mkdir(parents=True, exist_ok=True)
+    ui_target.mkdir(parents=True, exist_ok=True)
     shutil.copy2(resources / "Graficos" / "19054.png", graphics_target / "19054.png")
     shutil.copy2(
         resources / "OUTPUT" / "Alegreya Sans AO.ttf",
         fonts_target / "Alegreya Sans AO.ttf",
+    )
+    shutil.copy2(
+        PROJECT_ROOT / "assets" / "web" / "compass-rose.svg",
+        ui_target / "compass-rose.svg",
     )
 
 
@@ -129,6 +135,7 @@ def validate_output(output: Path, map_ids: set[int]) -> dict[str, int]:
         output / "index.html",
         output / "assets" / "graphics" / "19054.png",
         output / "assets" / "fonts" / "Alegreya Sans AO.ttf",
+        output / "assets" / "ui" / "compass-rose.svg",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     missing_maps = [
