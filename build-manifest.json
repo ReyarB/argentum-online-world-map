@@ -1,11 +1,13 @@
 {
-  "generated_at": "2026-10-26T16:51:16.792477+00:00",
+  "generated_at": "2026-10-26T19:51:39.554467+00:00",
   "resources": "C:\\Users\\ReyarB\\Documents\\GitHub\\Recursos",
-  "maps": 418,
-  "converted_maps": 418,
-  "unified_sources": 418,
+  "maps": 679,
+  "surface_maps": 418,
+  "interior_maps": 261,
+  "converted_maps": 679,
+  "unified_sources": 679,
   "legacy_merged_sources": 0,
   "base_only_sources": 0,
-  "files": 875,
-  "bytes": 63696718
+  "files": 1284,
+  "bytes": 83327778
 }
