@@ -73,7 +73,8 @@ principal, lo informa como `Respaldo válido` en la barra inferior.
 ## Probar la página
 
 1. Abrir `dist-web/index.html` (o `index.htm` para compatibilidad local).
-2. Probar zoom, arrastre, búsqueda y filtros.
+2. Probar zoom, arrastre, búsqueda y filtros; marcar varias casillas, recargar y
+   verificar que conserven su estado.
 3. Dejar el puntero un segundo sobre NPC, recurso, portal o punto de interés.
 4. Hacer doble clic sobre un mapa y verificar sus detalles.
 5. Presionar `F1`, cambiar la configuración, recargar y verificar persistencia.
@@ -88,6 +89,10 @@ Valores predeterminados:
 - Nombres de áreas: 260 % (ajustable entre 50 % y 350 % con F1).
 - Aviso contextual: 1 segundo.
 - Fuente: fuente gráfica 8 del cliente VB6.
+
+Las preferencias de F1 y las casillas del panel se guardan en el almacenamiento
+local del navegador. Son independientes para cada navegador y computadora, y no
+se envían al servidor.
 
 ## Regla para contribuir
 
