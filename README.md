@@ -21,7 +21,9 @@ navegador; no necesita Python, SQLite ni el World Editor.
 - Pillow.
 - Un checkout local actualizado de `Recursos`.
 - `map_content.sqlite` generado por el World Editor o la auditoría de mapas.
-- Minimapas completos y desbordes generados por el World Editor.
+- Minimapas extendidos generados por el World Editor. Cada PNG contiene el
+  centro del mapa y, en sus márgenes transparentes, los gráficos que cruzan
+  hacia mapas vecinos.
 
 ```powershell
 py -3.12 -m pip install -r requirements.txt
@@ -29,11 +31,19 @@ py -3.12 -m pip install -r requirements.txt
 
 ## Migración inicial
 
-La primera vez, copie los artefactos antiguos sin borrar todavía el origen:
+La primera vez, coloque los minimapas web antiguos de 592x640 en
+`workspace/minimapas` y sus desbordes en `workspace/desbordes`, o genérelos con
+el WE. Luego ejecute:
 
 ```powershell
 py -3.12 scripts/migrate_workspace.py --resources ..\Recursos
 ```
+
+`Recursos/Minimapas` contiene las imágenes de 100x100 usadas por el juego y no
+se emplea como entrada para esta conversión. La migración conserva intacto
+`Recursos`. Después de crear correctamente cada
+PNG unificado, elimina únicamente las copias BMP y los desbordes antiguos del
+`workspace` para que no vuelvan a tener prioridad durante la publicación.
 
 Los WE activos escriben después directamente en `workspace/`. La ruta se puede
 cambiar con el ajuste `paths/worldMapWorkspace` o con la variable de entorno
@@ -48,9 +58,11 @@ py -3.12 scripts/build_web.py --resources ..\Recursos
 La salida se escribe en `dist-web/`. Los BMP completos se convierten a WebP y
 el navegador carga solamente los mapas visibles.
 
-Por omisión se leen `workspace/minimapas`, `workspace/desbordes` y
-`workspace/map_content.sqlite`. `--map-assets` y `--database` permiten usar
-otra ubicación de forma explícita.
+Por omisión se leen `workspace/minimapas` y `workspace/map_content.sqlite`.
+`--map-assets` y `--database` permiten usar otra ubicación de forma explícita.
+El constructor todavía acepta temporalmente el formato anterior compuesto por
+un BMP base y `workspace/desbordes/`, y los combina en un único WebP al generar
+el sitio.
 
 ## Ejecutar la herramienta visual
 

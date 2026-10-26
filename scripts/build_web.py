@@ -16,6 +16,7 @@ from PIL import Image
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_FILE = PROJECT_ROOT / "src" / "mapa_mundo.py"
+BASE_MAP_SIZE = (592, 640)
 
 
 def load_generator():
@@ -46,32 +47,68 @@ def recreate_directory(path: Path, output_root: Path) -> None:
     resolved.mkdir(parents=True, exist_ok=True)
 
 
-def convert_maps(source: Path, target: Path, map_ids: set[int], quality: int) -> int:
+def find_map_image(directory: Path, map_id: int, suffix: str) -> Path | None:
+    for stem in (f"Mapa{map_id}", f"mapa{map_id}"):
+        candidate = directory / f"{stem}{suffix}"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def extended_map_image(source: Path, overflows: Path, map_id: int) -> tuple[Image.Image, str] | None:
+    unified = find_map_image(source, map_id, ".png")
+    if unified is not None:
+        with Image.open(unified) as image:
+            # The old workspace can also contain 200x216 composed-world PNGs
+            # with the same stem. Only an alpha image large enough to contain
+            # the canonical 592x640 center is a unified extended minimap.
+            if (image.width >= BASE_MAP_SIZE[0] and image.height >= BASE_MAP_SIZE[1]
+                    and (image.mode in {"RGBA", "LA"} or "transparency" in image.info)):
+                if ((image.width - BASE_MAP_SIZE[0]) % 2
+                        or (image.height - BASE_MAP_SIZE[1]) % 2):
+                    raise RuntimeError(f"Minimapa extendido descentrado: {unified}")
+                return image.convert("RGBA"), "unified"
+
+    base_path = find_map_image(source, map_id, ".bmp")
+    if base_path is None:
+        return None
+    with Image.open(base_path) as image:
+        base = image.convert("RGBA")
+
+    overflow_path = find_map_image(overflows, map_id, ".png")
+    if overflow_path is None:
+        return base, "base-only"
+    with Image.open(overflow_path) as image:
+        overflow = image.convert("RGBA")
+    if overflow.width < base.width or overflow.height < base.height:
+        raise RuntimeError(f"Desborde menor que el minimapa base: {overflow_path}")
+    delta_x = overflow.width - base.width
+    delta_y = overflow.height - base.height
+    if delta_x % 2 or delta_y % 2:
+        raise RuntimeError(f"Desborde descentrado respecto del minimapa base: {overflow_path}")
+    combined = Image.new("RGBA", overflow.size, (0, 0, 0, 0))
+    combined.alpha_composite(base, (delta_x // 2, delta_y // 2))
+    combined.alpha_composite(overflow)
+    return combined, "legacy-merged"
+
+
+def convert_maps(source: Path, overflows: Path, target: Path,
+                 map_ids: set[int], quality: int) -> dict[str, int]:
     recreate_directory(target, target.parent)
-    converted = 0
+    stats = {"converted_maps": 0, "unified_sources": 0,
+             "legacy_merged_sources": 0, "base_only_sources": 0}
     for map_id in sorted(map_ids):
-        source_path = source / f"Mapa{map_id}.bmp"
-        if not source_path.is_file():
-            source_path = source / f"mapa{map_id}.bmp"
-        if not source_path.is_file():
+        result = extended_map_image(source, overflows, map_id)
+        if result is None:
             continue
-        with Image.open(source_path) as image:
-            image.convert("RGB").save(
-                target / f"Mapa{map_id}.webp", "WEBP", quality=quality, method=6
-            )
-        converted += 1
-    return converted
-
-
-def copy_overflows(source: Path, target: Path, map_ids: set[int]) -> int:
-    recreate_directory(target, target.parent)
-    copied = 0
-    for map_id in sorted(map_ids):
-        source_path = source / f"Mapa{map_id}.png"
-        if source_path.is_file():
-            shutil.copy2(source_path, target / source_path.name)
-            copied += 1
-    return copied
+        image, source_kind = result
+        # Method 4 keeps practically the same size/quality as method 6 for the
+        # extended alpha images while making a complete rebuild several times
+        # faster on developer machines.
+        image.save(target / f"Mapa{map_id}.webp", "WEBP", quality=quality, method=4)
+        stats["converted_maps"] += 1
+        stats[f"{source_kind.replace('-', '_')}_sources"] += 1
+    return stats
 
 
 def copy_runtime_assets(resources: Path, output: Path) -> None:
@@ -116,7 +153,7 @@ def main() -> int:
         "--map-assets",
         type=Path,
         default=None,
-        help="Carpeta con minimapas/ y desbordes/ generados por el WE",
+        help="Carpeta con minimapas extendidos generados por el WE",
     )
     parser.add_argument("--database", type=Path, default=None, help="Ruta a map_content.sqlite")
     parser.add_argument("--output", type=Path, default=PROJECT_ROOT / "dist-web")
@@ -146,8 +183,12 @@ def main() -> int:
     }
 
     output.mkdir(parents=True, exist_ok=True)
-    converted = convert_maps(map_assets / "minimapas", output / "minimapas", placed_map_ids, args.quality)
-    copied_overflows = copy_overflows(map_assets / "desbordes", output / "desbordes", placed_map_ids)
+    conversion_stats = convert_maps(
+        map_assets / "minimapas", map_assets / "desbordes",
+        output / "minimapas", placed_map_ids, args.quality)
+    obsolete_overflows = output / "desbordes"
+    if obsolete_overflows.is_dir():
+        shutil.rmtree(obsolete_overflows)
     copy_runtime_assets(resources, output)
 
     app = object.__new__(module.MapaMundoApp)
@@ -162,8 +203,7 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "resources": str(resources),
         "maps": len(placed_map_ids),
-        "converted_maps": converted,
-        "overflow_images": copied_overflows,
+        **conversion_stats,
         **stats,
     }
     (output / "build-manifest.json").write_text(
