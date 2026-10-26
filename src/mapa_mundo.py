@@ -864,6 +864,7 @@ class MapaMundoApp(tk.Tk):
         self.image_offset_x = 0
         self.image_offset_y = 0
         self.missing_tiles: set[int] = set()
+        self.alternative_tiles: set[int] = set()
 
         self._build_ui()
         self._select_world(0)
@@ -920,29 +921,70 @@ class MapaMundoApp(tk.Tk):
         p = self.base_dir / folder
         return p if p.is_dir() else None
 
+    def _tile_directories(self, folder: str) -> List[Path]:
+        primary = self._folder_for_tile_size(folder)
+        candidates = [primary] if primary else []
+        if folder == "render":
+            candidates.extend([
+                self.base_dir / "Render",
+                self.base_dir / "tools_ReyarB" / "render",
+            ])
+        result: List[Path] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            key = str(candidate).casefold()
+            if candidate.is_dir() and key not in seen:
+                result.append(candidate)
+                seen.add(key)
+        return result
+
+    @staticmethod
+    def _uniform_image(image: Image.Image) -> bool:
+        return all(low == high for low, high in image.getextrema())
+
     def render_world(self, world: WorldMap, tile_size: int, folder: str) -> Image.Image:
         out = Image.new("RGB", (world.ancho * tile_size, world.alto * tile_size), "black")
-        tiles_dir = self._folder_for_tile_size(folder)
+        tile_directories = self._tile_directories(folder)
         cache: Dict[int, Image.Image] = {}
         for idx, tile_id in enumerate(world.map_indices):
             x = (idx % world.ancho) * tile_size
             y = (idx // world.ancho) * tile_size
             tile = cache.get(tile_id)
             if tile is None:
-                tile_path = (tiles_dir / f"mapa{tile_id}.bmp") if tiles_dir else None
-                if tile_path and tile_path.exists():
-                    tile = Image.open(tile_path).convert("RGB")
-                    if tile.size != (tile_size, tile_size):
-                        tile = tile.resize((tile_size, tile_size), Image.Resampling.NEAREST)
-                else:
+                available_tiles: List[Tuple[int, Path, Image.Image, bool]] = []
+                for tile_directory in tile_directories:
+                    tile_path = tile_directory / f"mapa{tile_id}.bmp"
+                    if not tile_path.exists():
+                        continue
+                    with Image.open(tile_path) as source:
+                        candidate = source.convert("RGB")
+                    available_tiles.append((
+                        tile_path.stat().st_mtime_ns,
+                        tile_directory,
+                        candidate,
+                        self._uniform_image(candidate),
+                    ))
+                selected_directory: Optional[Path] = None
+                usable_tiles = [entry for entry in available_tiles if not entry[3]]
+                if usable_tiles:
+                    _, selected_directory, tile, _ = max(usable_tiles, key=lambda entry: entry[0])
+                elif available_tiles:
+                    _, selected_directory, tile, _ = max(available_tiles, key=lambda entry: entry[0])
+                if tile is None:
                     self.missing_tiles.add(tile_id)
                     tile = Image.new("RGB", (tile_size, tile_size), "black")
+                else:
+                    if selected_directory != tile_directories[0]:
+                        self.alternative_tiles.add(tile_id)
+                    if tile.size != (tile_size, tile_size):
+                        tile = tile.resize((tile_size, tile_size), Image.Resampling.NEAREST)
                 cache[tile_id] = tile
             out.paste(tile, (x, y))
         return out
 
     def render_current(self) -> None:
         self.missing_tiles.clear()
+        self.alternative_tiles.clear()
         self.current_image = self.render_world(self.world, TILE_SIZE, "render")
         self.current_photo = ImageTk.PhotoImage(self.current_image)
         self.canvas.delete("all")
@@ -952,6 +994,9 @@ class MapaMundoApp(tk.Tk):
         if self.missing_tiles:
             sample = ", ".join(map(str, sorted(self.missing_tiles)[:8]))
             msg += f" | Faltan BMP: {sample}"
+        if self.alternative_tiles:
+            sample = ", ".join(map(str, sorted(self.alternative_tiles)[:8]))
+            msg += f" | Respaldo válido: {sample}"
         self._set_status(msg)
 
     def _canvas_resized(self, _event: tk.Event) -> None:
@@ -1299,7 +1344,7 @@ class MapaMundoApp(tk.Tk):
             "<style>",
             "@font-face{font-family:'Alegreya Sans AO';src:url('assets/fonts/Alegreya%20Sans%20AO.ttf') format('truetype');font-display:swap}",
             "html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#111;color:#eee;font:14px Segoe UI,Arial,sans-serif}",
-            "#toolbar{position:fixed;z-index:20;left:12px;top:12px;display:flex;flex-direction:column;align-items:stretch;gap:7px;box-sizing:border-box;max-height:calc(200vh - 48px);padding:8px 10px;background:#202428ee;border:1px solid #555;border-radius:7px;box-shadow:0 2px 12px #0008;transform:scale(.5);transform-origin:top left}",
+            "#toolbar{position:fixed;z-index:20;left:12px;top:12px;display:flex;flex-direction:column;align-items:stretch;gap:7px;box-sizing:border-box;max-height:calc(117.647vh - 28.235px);padding:8px 10px;background:#202428ee;border:1px solid #555;border-radius:7px;box-shadow:0 2px 12px #0008;transform:scale(.85);transform-origin:top left}",
             "#toolbar button{min-width:34px;height:30px;background:#343a40;color:#eee;border:1px solid #687078;border-radius:4px;cursor:pointer}",
             "#toolbar button:hover{background:#454d55}",
             ".panel-toggle{width:34px;padding:0;font-size:17px;line-height:28px}",
@@ -1322,13 +1367,13 @@ class MapaMundoApp(tk.Tk):
             ".map-count{display:none;width:34px;height:34px;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-size:17px;font-weight:700;text-shadow:0 1px 2px #000;box-shadow:0 2px 5px #0008;border:1px solid #ffffff44}",
             "body.counts-on .map-count.layer-active{display:flex}",
             ".selected{outline:4px solid #49a8ff;outline-offset:-4px}",
-            "#details{position:fixed;z-index:20;right:12px;top:12px;width:300px;min-width:220px;min-height:120px;max-width:calc(200vw - 48px);max-height:calc(200vh - 48px);overflow:auto;resize:both;padding:10px 12px;background:#202428ee;border:1px solid #555;border-radius:7px;box-shadow:0 2px 12px #0008;display:none;transform:scale(.5);transform-origin:top right}",
+            "#details{position:fixed;z-index:20;right:12px;top:12px;width:300px;min-width:220px;min-height:120px;max-width:calc(117.647vw - 28.235px);max-height:calc(117.647vh - 28.235px);overflow:auto;resize:both;padding:10px 12px;background:#202428ee;border:1px solid #555;border-radius:7px;box-shadow:0 2px 12px #0008;display:none;transform:scale(.85);transform-origin:top right}",
             "#detailsHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px}",
             "#details.collapsed{width:300px;height:auto;min-width:220px;min-height:0;overflow:hidden;resize:none}",
             "#details.collapsed #detailsExpanded{display:none}",
             "#details.collapsed #detailsSummary{padding-bottom:8px;border-bottom:1px solid #c8c8c8}",
             "#details strong{color:#71d99b}",
-            "#help{position:fixed;z-index:20;left:12px;bottom:10px;padding:6px 9px;background:#202428dd;border-radius:5px;color:#bbb;transform:scale(.5);transform-origin:bottom left}",
+            "#help{position:fixed;z-index:20;left:12px;bottom:10px;padding:6px 9px;background:#202428dd;border-radius:5px;color:#bbb;transform:scale(.85);transform-origin:bottom left}",
             "#markerTooltip{position:fixed;z-index:40;display:none;max-width:320px;padding:9px 11px;background:#171d21f2;color:#eee;border:1px solid #77818a;border-radius:6px;box-shadow:0 3px 14px #000b;pointer-events:none;line-height:1.35;transform:scale(.75);transform-origin:top left}",
             "#markerTooltip strong{display:block;margin-bottom:3px;color:#f5e7b0;font-size:15px}",
             "#settingsBackdrop{position:fixed;z-index:60;inset:0;display:none;align-items:center;justify-content:center;background:#0009}",
@@ -1403,7 +1448,7 @@ class MapaMundoApp(tk.Tk):
             '    <div class="setting-row"><label for="settingFace">Tamaño de caras</label><input id="settingFace" type="range" min="5" max="40" step="1"><output id="settingFaceValue"></output></div>',
             '    <div class="setting-row"><label for="settingBody">Tamaño de cuerpos</label><input id="settingBody" type="range" min="30" max="120" step="5"><output id="settingBodyValue"></output></div>',
             '    <div class="setting-row"><label for="settingObject">Recursos y objetos</label><input id="settingObject" type="range" min="40" max="160" step="5"><output id="settingObjectValue"></output></div>',
-            '    <div class="setting-row"><label for="settingAreaSize">Nombres de áreas</label><input id="settingAreaSize" type="range" min="50" max="160" step="5"><output id="settingAreaSizeValue"></output></div>',
+            '    <div class="setting-row"><label for="settingAreaSize">Nombres de áreas</label><input id="settingAreaSize" type="range" min="50" max="350" step="10"><output id="settingAreaSizeValue"></output></div>',
             '    <div class="setting-row"><label for="settingTooltip">Espera de información</label><input id="settingTooltip" type="range" min="300" max="3000" step="100"><output id="settingTooltipValue"></output></div>',
             '    <div class="setting-row"><label for="settingFont">Fuente de áreas</label><select id="settingFont"><option value="game">Fuente gráfica del juego</option><option value="alegreya">Alegreya Sans AO</option><option value="segoe">Segoe UI</option></select></div>',
             '    <div class="settings-actions"><button id="resetSettings">Restaurar predeterminados</button><button id="saveSettings">Guardar y cerrar</button></div>',
@@ -1421,7 +1466,7 @@ class MapaMundoApp(tk.Tk):
             f"const AREA_LABELS={embedded_area_labels};",
             f"const MAP_FONT={embedded_map_font};",
             f"const COLS={world.ancho}, ROWS={world.alto}, TILE_W=592, TILE_H=640;",
-            "const DEFAULT_SETTINGS=Object.freeze({faceScale:15,bodyScale:70,objectScale:100,areaScale:100,tooltipDelay:1000,areaFont:'game'}),SETTING_LIMITS={faceScale:[5,40],bodyScale:[30,120],objectScale:[40,160],areaScale:[50,160],tooltipDelay:[300,3000]},SETTINGS_KEY='mapaMundoSettingsV1';",
+            "const DEFAULT_SETTINGS=Object.freeze({faceScale:15,bodyScale:70,objectScale:100,areaScale:260,tooltipDelay:1000,areaFont:'game'}),SETTING_LIMITS={faceScale:[5,40],bodyScale:[30,120],objectScale:[40,160],areaScale:[50,350],tooltipDelay:[300,3000]},SETTINGS_KEY='mapaMundoSettingsV3';",
             "function validatedSettings(raw){const value={...DEFAULT_SETTINGS};Object.entries(SETTING_LIMITS).forEach(([key,range])=>{const number=Number(raw&&raw[key]);if(Number.isFinite(number))value[key]=Math.min(range[1],Math.max(range[0],number));});if(['game','alegreya','segoe'].includes(raw&&raw.areaFont))value.areaFont=raw.areaFont;return value;}",
             "function loadSettings(){try{return validatedSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));}catch(_error){return {...DEFAULT_SETTINGS};}}",
             "let SETTINGS=loadSettings();",
@@ -1503,9 +1548,10 @@ class MapaMundoApp(tk.Tk):
         self.interface_dir.mkdir(parents=True, exist_ok=True)
         source_folder = "render200x200" if (self.base_dir / "render200x200").is_dir() else "render"
         self.missing_tiles.clear()
+        self.alternative_tiles.clear()
         exports = [
             (self.interface_dir / f"world{world_id}.png", self.render_world(world, 200, source_folder))
-            for world_id, world in enumerate(self.data.worlds[:2], start=1)
+            for world_id, world in enumerate(self.data.worlds[:3], start=1)
         ]
         self.data.save()
         for target, image in exports:

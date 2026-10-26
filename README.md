@@ -61,9 +61,14 @@ py -3.12 src/mapa_mundo.py `
   --web-output .\dist-web
 ```
 
-La ventana continúa editando `mapsworlddata.dat` y exportando `world1.png` y
-`world2.png` a sus rutas oficiales de `Recursos`, pero la página web se genera
-exclusivamente en `dist-web/`.
+La ventana continúa editando `mapsworlddata.dat` y exportando `world1.png`,
+`world2.png` y `world3.png` a sus rutas oficiales de `Recursos`, pero la página
+web se genera exclusivamente en `dist-web/`.
+
+Para la vista de 27×27 y la exportación del cliente se revisan las carpetas
+`Recursos/Render` y `Recursos/tools_ReyarB/render`. La herramienta descarta las
+copias uniformes, elige la copia válida más reciente y, cuando no usa la ruta
+principal, lo informa como `Respaldo válido` en la barra inferior.
 
 ## Probar la página
 
@@ -79,7 +84,7 @@ Valores predeterminados:
 - Caras `NpcFaceGrh`: 15 %.
 - Cuerpos `Body`: 70 %.
 - Objetos y recursos: 100 %.
-- Nombres de áreas: 100 %.
+- Nombres de áreas: 260 % (ajustable entre 50 % y 350 % con F1).
 - Aviso contextual: 1 segundo.
 - Fuente: fuente gráfica 8 del cliente VB6.
 
