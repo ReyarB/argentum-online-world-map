@@ -81,6 +81,7 @@ principal, lo informa como `Respaldo válido` en la barra inferior.
 
 Valores predeterminados:
 
+- Vista inicial centrada con zoom al 25 %.
 - Caras `NpcFaceGrh`: 15 %.
 - Cuerpos `Body`: 70 %.
 - Objetos y recursos: 100 %.
