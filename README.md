@@ -15,6 +15,16 @@ no guarda herramientas ni salidas web dentro de ese repositorio.
 La aplicación web resultante es estática. El usuario final solo necesita un
 navegador; no necesita Python, SQLite ni el World Editor.
 
+Los traslados internos se publican como entradas visibles. Un doble clic abre
+`interiores.html`, una página independiente que permite recorrer dungeons,
+sótanos y demás interiores mediante las coordenadas reales de
+`map_content.sqlite`, y regresar después al mapa de superficie. Los interiores
+conectados por sus bordes se acomodan como un submundo continuo, con búsqueda,
+zoom, arrastre, selección de mapas, capas, contadores, preferencias F1 y la
+opción de mostrar u ocultar traslados. El constructor incluye
+automáticamente los minimapas interiores alcanzables sin incorporarlos a la
+grilla del mundo.
+
 ## Requisitos
 
 - Python 3.12 o posterior.
@@ -89,8 +99,14 @@ principal, lo informa como `Respaldo válido` en la barra inferior.
    verificar que conserven su estado.
 3. Dejar el puntero un segundo sobre NPC, recurso, portal o punto de interés.
 4. Hacer doble clic sobre un mapa y verificar sus detalles.
-5. Presionar `F1`, cambiar la configuración, recargar y verificar persistencia.
-6. Restaurar los valores predeterminados.
+5. En el mapa 32, hacer doble clic sobre el marcador de traslado hacia
+   `Mapa 397 - Catacumba Residencial III` y recorrer al menos uno de sus
+   traslados.
+6. En el mapa 34, abrir `Mapa 168 - Newbie Dungeon` y verificar que se navegue
+   a `interiores.html`, con la vista unida 2×2 de los mapas 37, 167, 168 y 264,
+   incluyendo búsqueda, zoom, capas, traslados y el regreso a `index.html`.
+7. Presionar `F1`, cambiar la configuración, recargar y verificar persistencia.
+8. Restaurar los valores predeterminados.
 
 Valores predeterminados:
 
@@ -101,6 +117,8 @@ Valores predeterminados:
 - Nombres de áreas: 260 % (ajustable entre 50 % y 350 % con F1).
 - Aviso contextual: 1 segundo.
 - Fuente: fuente gráfica 8 del cliente VB6.
+- Panel del mapa compacto: muestra contadores, pero oculta los listados
+  detallados. Se pueden habilitar con F1.
 
 Las preferencias de F1 y las casillas del panel se guardan en el almacenamiento
 local del navegador. Son independientes para cada navegador y computadora, y no

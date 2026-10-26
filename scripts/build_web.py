@@ -7,7 +7,9 @@ import argparse
 import importlib.util
 import json
 import shutil
+import sqlite3
 import sys
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -17,6 +19,60 @@ from PIL import Image
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_FILE = PROJECT_ROOT / "src" / "mapa_mundo.py"
 BASE_MAP_SIZE = (592, 640)
+
+
+def is_border_exit(x: int, y: int) -> bool:
+    """Devuelve True para los cuatro anillos de traslado entre mapas de superficie."""
+    return x <= 13 or x >= 88 or y <= 10 or y >= 91
+
+
+def discover_interior_map_ids(database: Path, surface_map_ids: set[int]) -> set[int]:
+    """Encuentra interiores alcanzables desde una entrada interna de la superficie."""
+    connection = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+    try:
+        map_rows = connection.execute(
+            "SELECT map_id,file_name,file_path FROM maps"
+        ).fetchall()
+        directory_counts = Counter(
+            str(Path(str(row[2])).parent).casefold() for row in map_rows
+        )
+        active_directory = directory_counts.most_common(1)[0][0] if directory_counts else ""
+        active_files = {
+            (int(row[0]), str(row[1]))
+            for row in map_rows
+            if str(Path(str(row[2])).parent).casefold() == active_directory
+        }
+        active_map_ids = {map_id for map_id, _file_name in active_files}
+        exit_rows = connection.execute(
+            "SELECT map_id,file_name,x,y,to_map FROM map_exits "
+            "WHERE COALESCE(to_map,0)>0"
+        ).fetchall()
+    finally:
+        connection.close()
+
+    seeds: set[int] = set()
+    graph: dict[int, set[int]] = defaultdict(set)
+    for map_id, file_name, x, y, to_map in exit_rows:
+        map_id, x, y, to_map = map(int, (map_id, x, y, to_map))
+        if (map_id, str(file_name)) not in active_files or to_map not in active_map_ids:
+            continue
+        if (map_id in surface_map_ids and to_map not in surface_map_ids
+                and not is_border_exit(x, y)):
+            seeds.add(to_map)
+        if map_id not in surface_map_ids and to_map not in surface_map_ids and map_id != to_map:
+            graph[map_id].add(to_map)
+            graph[to_map].add(map_id)
+
+    discovered = set(seeds)
+    pending = list(seeds)
+    while pending:
+        map_id = pending.pop()
+        for neighbor in graph.get(map_id, ()):
+            if neighbor in discovered:
+                continue
+            discovered.add(neighbor)
+            pending.append(neighbor)
+    return discovered
 
 
 def load_generator():
@@ -133,6 +189,7 @@ def validate_output(output: Path, map_ids: set[int]) -> dict[str, int]:
     required = [
         output / "index.htm",
         output / "index.html",
+        output / "interiores.html",
         output / "assets" / "graphics" / "19054.png",
         output / "assets" / "fonts" / "Alegreya Sans AO.ttf",
         output / "assets" / "ui" / "compass-rose.svg",
@@ -188,11 +245,13 @@ def main() -> int:
         for map_id in data.worlds[0].map_indices
         if map_id > 0 and map_id != module.EMPTY_TILE
     }
+    interior_map_ids = discover_interior_map_ids(database, placed_map_ids)
+    published_map_ids = placed_map_ids | interior_map_ids
 
     output.mkdir(parents=True, exist_ok=True)
     conversion_stats = convert_maps(
         map_assets / "minimapas", map_assets / "desbordes",
-        output / "minimapas", placed_map_ids, args.quality)
+        output / "minimapas", published_map_ids, args.quality)
     obsolete_overflows = output / "desbordes"
     if obsolete_overflows.is_dir():
         shutil.rmtree(obsolete_overflows)
@@ -203,13 +262,17 @@ def main() -> int:
     app.web_output_dir = output
     app.database_file = database
     app.data = data
+    app.published_map_ids = published_map_ids
     index_path = app.write_world_index()
     shutil.copy2(index_path, output / "index.html")
-    stats = validate_output(output, placed_map_ids)
+    shutil.copy2(index_path, output / "interiores.html")
+    stats = validate_output(output, published_map_ids)
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "resources": str(resources),
-        "maps": len(placed_map_ids),
+        "maps": len(published_map_ids),
+        "surface_maps": len(placed_map_ids),
+        "interior_maps": len(interior_map_ids),
         **conversion_stats,
         **stats,
     }

@@ -21,6 +21,7 @@ import argparse
 import configparser
 import json
 import os
+import re
 import sqlite3
 import struct
 import sys
@@ -284,10 +285,14 @@ def csm_map_metadata(path: Path) -> Dict[str, int | str]:
         safe = data[offset]
         offset += 1
         zone, offset = read_string(offset)
-        terrain, _offset = read_string(offset)
+        terrain, offset = read_string(offset)
+        _ambient, offset = read_string(offset)
+        offset += 16  # luz base, gráfico de letra, nivel y extra2
+        outside_exit, _offset = read_string(offset)
         return {
             "name": name.strip(), "restrict": restrict_mode.strip(),
             "zone": zone.strip(), "terrain": terrain.strip(),
+            "outsideExit": outside_exit.strip(),
             # En el CSM, Seguro=1 significa mapa no-PK.
             "pk": 0 if safe else 1,
         }
@@ -762,6 +767,138 @@ def is_valid_world_data_file(path: Path) -> bool:
         return False
 
 
+def is_border_exit_coordinate(x: int, y: int) -> bool:
+    """Identifica los anillos de traslado que unen mapas contiguos de superficie."""
+    return x <= 13 or x >= 88 or y <= 10 or y >= 91
+
+
+def cluster_map_exits(
+    records: List[Tuple[int, int, int, int, int]],
+) -> List[Dict[str, int | float | bool]]:
+    """Agrupa tiles contiguos de un mismo traslado en un único acceso visible."""
+    by_destination: Dict[int, List[Tuple[int, int, int, int]]] = {}
+    for x, y, to_map, to_x, to_y in records:
+        by_destination.setdefault(to_map, []).append((x, y, to_x, to_y))
+
+    clustered: List[Dict[str, int | float | bool]] = []
+    for to_map, points in by_destination.items():
+        pending = set(range(len(points)))
+        while pending:
+            first = pending.pop()
+            component = [first]
+            queue = [first]
+            while queue:
+                current = queue.pop()
+                x, y, _to_x, _to_y = points[current]
+                neighbors = [
+                    index for index in pending
+                    if abs(points[index][0] - x) <= 1 and abs(points[index][1] - y) <= 1
+                ]
+                for index in neighbors:
+                    pending.remove(index)
+                    component.append(index)
+                    queue.append(index)
+            members = [points[index] for index in component]
+            clustered.append({
+                "x": round(sum(point[0] for point in members) / len(members), 2),
+                "y": round(sum(point[1] for point in members) / len(members), 2),
+                "toMap": to_map,
+                "toX": round(sum(point[2] for point in members) / len(members), 2),
+                "toY": round(sum(point[3] for point in members) / len(members), 2),
+                "tiles": len(members),
+                "border": all(is_border_exit_coordinate(point[0], point[1]) for point in members),
+            })
+    return sorted(clustered, key=lambda item: (bool(item["border"]), item["y"], item["x"], item["toMap"]))
+
+
+def interior_exit_offset(exit_data: Dict[str, int | float | bool]) -> Optional[Tuple[int, int]]:
+    """Devuelve la casilla vecina sugerida por un traslado situado en un borde."""
+    if not exit_data.get("border") or exit_data.get("outside"):
+        return None
+    x = float(exit_data.get("x", 50))
+    y = float(exit_data.get("y", 50))
+    candidates: List[Tuple[float, Tuple[int, int]]] = []
+    if x <= 13:
+        candidates.append((abs(x - 13), (-1, 0)))
+    if x >= 88:
+        candidates.append((abs(x - 88), (1, 0)))
+    if y <= 10:
+        candidates.append((abs(y - 10), (0, -1)))
+    if y >= 91:
+        candidates.append((abs(y - 91), (0, 1)))
+    return min(candidates, key=lambda item: item[0])[1] if candidates else None
+
+
+def build_interior_layouts(
+    map_exits: Dict[int, List[Dict[str, int | float | bool]]],
+    surface_map_ids: set[int],
+    published_map_ids: set[int],
+) -> Tuple[List[Dict[str, int | List[Dict[str, int]]]], Dict[int, int]]:
+    """Agrupa y ubica mapas interiores conectados físicamente por sus bordes."""
+    interior_ids = sorted(published_map_ids - surface_map_ids)
+    graph: Dict[int, List[Tuple[int, int, int]]] = {map_id: [] for map_id in interior_ids}
+    interior_set = set(interior_ids)
+    for source in interior_ids:
+        for exit_data in map_exits.get(source, []):
+            destination = int(exit_data.get("toMap", 0))
+            offset = interior_exit_offset(exit_data)
+            if destination not in interior_set or destination == source or offset is None:
+                continue
+            dx, dy = offset
+            graph[source].append((destination, dx, dy))
+            graph[destination].append((source, -dx, -dy))
+
+    components: List[Dict[str, int | List[Dict[str, int]]]] = []
+    component_by_map: Dict[int, int] = {}
+    unseen = set(interior_ids)
+    while unseen:
+        root = min(unseen)
+        positions: Dict[int, Tuple[int, int]] = {root: (0, 0)}
+        occupied: Dict[Tuple[int, int], int] = {(0, 0): root}
+        pending = [root]
+        unseen.remove(root)
+        while pending:
+            source = pending.pop(0)
+            source_x, source_y = positions[source]
+            for destination, dx, dy in sorted(graph.get(source, [])):
+                if destination in positions:
+                    continue
+                target = (source_x + dx, source_y + dy)
+                if target in occupied:
+                    # Algunos dungeons reutilizan un mismo borde como retorno.
+                    # Mantiene cada mapa una sola vez y busca la casilla libre más cercana.
+                    for radius in range(1, len(interior_ids) + 2):
+                        options = [
+                            (target[0] + ox, target[1] + oy)
+                            for oy in range(-radius, radius + 1)
+                            for ox in range(-radius, radius + 1)
+                            if max(abs(ox), abs(oy)) == radius
+                        ]
+                        free = next((item for item in options if item not in occupied), None)
+                        if free is not None:
+                            target = free
+                            break
+                positions[destination] = target
+                occupied[target] = destination
+                unseen.discard(destination)
+                pending.append(destination)
+
+        min_x = min(position[0] for position in positions.values())
+        min_y = min(position[1] for position in positions.values())
+        normalized = [
+            {"id": map_id, "col": position[0] - min_x, "row": position[1] - min_y}
+            for map_id, position in sorted(positions.items())
+        ]
+        cols = max(item["col"] for item in normalized) + 1
+        rows = max(item["row"] for item in normalized) + 1
+        component_id = len(components)
+        components.append({"maps": normalized, "cols": cols, "rows": rows})
+        for map_id in positions:
+            component_by_map[map_id] = component_id
+
+    return components, component_by_map
+
+
 @dataclass
 class WorldMap:
     ancho: int
@@ -1026,6 +1163,7 @@ class MapaMundoApp(tk.Tk):
             map_id for map_id in world.map_indices
             if map_id > 0 and map_id != EMPTY_TILE
         }
+        published_map_ids = set(getattr(self, "published_map_ids", placed_map_ids))
         layer_definitions = [
             ("wood", "Madera común", "#2cff72", "object"),
             ("pine", "Madera de pino", "#9ade4b", "object"),
@@ -1053,6 +1191,7 @@ class MapaMundoApp(tk.Tk):
         }
         map_info: Dict[int, Dict[str, int | str]] = {}
         map_connections: Dict[int, set[int]] = {}
+        raw_map_exits: Dict[int, List[Tuple[int, int, int, int, int]]] = {}
         npcs_path = self.base_dir / "Dat" / "npcs.dat"
         hostile_ids = hostile_npc_ids(npcs_path)
         quest_ids = quest_npc_ids(npcs_path)
@@ -1111,7 +1250,7 @@ class MapaMundoApp(tk.Tk):
                     if str(Path(str(row[2])).parent).casefold() == active_directory
                 }
                 for map_id, file_name, file_path, name, terrain, zone, pk, restrict_mode in map_rows:
-                    if (int(map_id), str(file_name)) not in active_files or int(map_id) not in placed_map_ids:
+                    if (int(map_id), str(file_name)) not in active_files:
                         continue
                     map_info[int(map_id)] = {
                         "name": str(name), "terrain": str(terrain), "zone": str(zone),
@@ -1126,7 +1265,7 @@ class MapaMundoApp(tk.Tk):
                 seen_objects = set()
                 for map_id, file_name, x, y, obj_id, obj_type, obj_name in rows:
                     map_id, x, y, obj_id, obj_type = map(int, (map_id, x, y, obj_id, obj_type))
-                    if (map_id, str(file_name)) not in active_files or map_id not in placed_map_ids:
+                    if (map_id, str(file_name)) not in active_files or map_id not in published_map_ids:
                         continue
                     if not (14 <= x <= 87 and 11 <= y <= 90):
                         continue
@@ -1177,7 +1316,7 @@ class MapaMundoApp(tk.Tk):
                 }
                 for map_id, file_name, x, y, npc_id, npc_name in npc_rows:
                     map_id, x, y, npc_id = map(int, (map_id, x, y, npc_id))
-                    if (map_id, str(file_name)) not in active_files or map_id not in placed_map_ids:
+                    if (map_id, str(file_name)) not in active_files or map_id not in published_map_ids:
                         continue
                     if not (14 <= x <= 87 and 11 <= y <= 90):
                         continue
@@ -1199,18 +1338,24 @@ class MapaMundoApp(tk.Tk):
                     append_point(layer_id, map_id, point)
 
                 exit_rows = connection.execute(
-                    "SELECT map_id,file_name,to_map FROM map_exits WHERE COALESCE(to_map,0)>0"
+                    "SELECT map_id,file_name,x,y,to_map,to_x,to_y FROM map_exits "
+                    "WHERE COALESCE(to_map,0)<>0"
                 )
-                for map_id, file_name, to_map in exit_rows:
-                    map_id, to_map = int(map_id), int(to_map)
-                    if (map_id, str(file_name)) in active_files and map_id in placed_map_ids and to_map != map_id:
+                for map_id, file_name, x, y, to_map, to_x, to_y in exit_rows:
+                    map_id, x, y, to_map, to_x, to_y = map(
+                        int, (map_id, x, y, to_map, to_x, to_y)
+                    )
+                    if (map_id, str(file_name)) not in active_files or to_map == map_id:
+                        continue
+                    if to_map > 0:
                         map_connections.setdefault(map_id, set()).add(to_map)
+                    raw_map_exits.setdefault(map_id, []).append((x, y, to_map, to_x, to_y))
             finally:
                 connection.close()
 
         # Los CSM son la fuente oficial de estos textos y conservan su
         # codificación; la base auxiliar puede contener caracteres reemplazados.
-        for map_id in placed_map_ids:
+        for map_id in map_info:
             metadata = csm_map_metadata(self.base_dir / "Mapas" / f"mapa{map_id}.csm")
             if not metadata:
                 continue
@@ -1269,13 +1414,36 @@ class MapaMundoApp(tk.Tk):
         for layer_id, label, color, kind in layer_definitions:
             points_by_map = {
                 map_id: points for map_id, points in layer_maps[layer_id].items()
-                if map_id in placed_map_ids
+                if map_id in published_map_ids
             }
             layers.append({
                 "id": layer_id, "label": label, "color": color, "kind": kind,
-                "total": sum(len(points) for points in points_by_map.values()), "maps": points_by_map,
+                "total": sum(
+                    len(points) for map_id, points in points_by_map.items()
+                    if map_id in placed_map_ids
+                ),
+                "maps": points_by_map,
             })
         connections = {map_id: sorted(destinations) for map_id, destinations in map_connections.items()}
+        map_exits = {
+            map_id: cluster_map_exits(records)
+            for map_id, records in raw_map_exits.items()
+        }
+        outside_exit_pattern = re.compile(r"^(-?\d+)-(-?\d+)-(-?\d+)$")
+        for map_id, info in map_info.items():
+            match = outside_exit_pattern.fullmatch(str(info.get("outsideExit", "")).strip())
+            if not match:
+                continue
+            to_map, to_x, to_y = (int(value) for value in match.groups())
+            if to_map == 0:
+                continue
+            map_exits.setdefault(map_id, []).append({
+                "x": 50, "y": 90, "toMap": to_map, "toX": to_x, "toY": to_y,
+                "tiles": 0, "border": True, "outside": True,
+            })
+        interior_components, interior_component_by_map = build_interior_layouts(
+            map_exits, placed_map_ids, published_map_ids
+        )
         used_object_ids = {
             int(point.get("iconObj", point["obj"]))
             for layer in layers if layer["kind"] == "object"
@@ -1295,7 +1463,7 @@ class MapaMundoApp(tk.Tk):
             self.base_dir, used_npc_ids, minimap_root / "iconos_npc"
         )
         search_items: List[Dict[str, int | str]] = []
-        for map_id in sorted(placed_map_ids):
+        for map_id in sorted(published_map_ids):
             info = map_info.get(map_id, {})
             search_items.append({
                 "map": map_id, "type": "Mapa",
@@ -1304,6 +1472,8 @@ class MapaMundoApp(tk.Tk):
         seen_search = set()
         for layer in layers:
             for map_id, points in layer["maps"].items():
+                if map_id not in published_map_ids:
+                    continue
                 for point in points:
                     name = str(point.get("resourceName", point.get("name", ""))).strip()
                     identity = point.get("npc", point.get("obj", ""))
@@ -1323,6 +1493,13 @@ class MapaMundoApp(tk.Tk):
         embedded_layers = json.dumps(layers, ensure_ascii=True, separators=(",", ":"))
         embedded_map_info = json.dumps(map_info, ensure_ascii=True, separators=(",", ":"))
         embedded_connections = json.dumps(connections, ensure_ascii=True, separators=(",", ":"))
+        embedded_map_exits = json.dumps(map_exits, ensure_ascii=True, separators=(",", ":"))
+        embedded_interior_components = json.dumps(
+            interior_components, ensure_ascii=True, separators=(",", ":")
+        )
+        embedded_interior_component_by_map = json.dumps(
+            interior_component_by_map, ensure_ascii=True, separators=(",", ":")
+        )
         embedded_offers = json.dumps(npc_offers, ensure_ascii=True, separators=(",", ":"))
         embedded_search = json.dumps(search_items, ensure_ascii=True, separators=(",", ":"))
         embedded_object_icons = json.dumps(object_icons, ensure_ascii=True, separators=(",", ":"))
@@ -1331,6 +1508,9 @@ class MapaMundoApp(tk.Tk):
             sorted(npc_face_icons), ensure_ascii=True, separators=(",", ":")
         )
         embedded_area_labels = json.dumps(area_labels, ensure_ascii=True, separators=(",", ":"))
+        embedded_surface_maps = json.dumps(
+            sorted(placed_map_ids), ensure_ascii=True, separators=(",", ":")
+        )
         embedded_map_font = json.dumps(
             map_name_font_glyphs(self.base_dir), ensure_ascii=True, separators=(",", ":")
         )
@@ -1373,12 +1553,15 @@ class MapaMundoApp(tk.Tk):
             "#details.collapsed #detailsExpanded{display:none}",
             "#details.collapsed #detailsSummary{padding-bottom:8px;border-bottom:1px solid #c8c8c8}",
             "#details strong{color:#71d99b}",
+            "#detailsCounts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;padding-top:9px;border-top:1px solid #596068}",
+            ".detail-count{padding:3px 7px;background:#151a1ecc;border:1px solid #596068;border-radius:10px;color:#dfe5e9;white-space:nowrap}",
+            ".details-hint{margin-top:8px;color:#aeb7bf;font-size:12px}",
             "#help{position:fixed;z-index:20;left:12px;bottom:10px;padding:6px 9px;background:#202428dd;border-radius:5px;color:#bbb;transform:scale(.85);transform-origin:bottom left}",
             "#compassRose{position:fixed;z-index:10;right:14px;bottom:12px;width:clamp(96px,12vw,165px);max-height:calc(100vh - 28px);opacity:.86;filter:drop-shadow(0 3px 7px #000c);pointer-events:none;user-select:none}",
             "@media (max-width:600px),(max-height:480px){#compassRose{right:10px;bottom:56px;width:72px;max-height:calc(100vh - 68px);opacity:.8}}",
             "#markerTooltip{position:fixed;z-index:40;display:none;max-width:320px;padding:9px 11px;background:#171d21f2;color:#eee;border:1px solid #77818a;border-radius:6px;box-shadow:0 3px 14px #000b;pointer-events:none;line-height:1.35;transform:scale(.75);transform-origin:top left}",
             "#markerTooltip strong{display:block;margin-bottom:3px;color:#f5e7b0;font-size:15px}",
-            "#settingsBackdrop{position:fixed;z-index:60;inset:0;display:none;align-items:center;justify-content:center;background:#0009}",
+            "#settingsBackdrop{position:fixed;z-index:80;inset:0;display:none;align-items:center;justify-content:center;background:#0009}",
             "#settingsBackdrop.open{display:flex}",
             "#settingsPanel{width:min(520px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box;padding:18px 20px;background:#20272c;color:#eee;border:1px solid #77818a;border-radius:9px;box-shadow:0 8px 35px #000d}",
             "#settingsPanel h2{margin:0 0 5px;color:#f5e7b0}",
@@ -1387,9 +1570,55 @@ class MapaMundoApp(tk.Tk):
             ".setting-row input[type=range]{width:100%}",
             ".setting-row output{text-align:right;color:#f5e7b0;font-weight:600}",
             ".setting-row select{grid-column:2/4;padding:6px;background:#11171b;color:#eee;border:1px solid #687078;border-radius:4px}",
+            ".setting-check{display:flex;align-items:center;gap:8px;margin:14px 0;padding:10px 0;border-top:1px solid #596068;border-bottom:1px solid #596068;cursor:pointer}",
+            ".setting-check input{width:17px;height:17px}",
             ".settings-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;padding-top:13px;border-top:1px solid #596068}",
             ".settings-actions button{padding:7px 12px;background:#343a40;color:#eee;border:1px solid #687078;border-radius:4px;cursor:pointer}",
             ".settings-actions button:hover{background:#454d55}",
+            "#interiorBackdrop{position:fixed;z-index:70;inset:0;display:none;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;background:#000b}",
+            "#interiorBackdrop.open{display:flex}",
+            "#interiorPanel{display:grid;grid-template-rows:auto minmax(0,1fr);width:min(1450px,calc(100vw - 24px));height:min(920px,calc(100vh - 24px));overflow:hidden;background:#171d21;color:#eee;border:1px solid #77818a;border-radius:10px;box-shadow:0 10px 45px #000e}",
+            "#interiorHeader{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 14px;background:#242b30;border-bottom:1px solid #596068}",
+            "#interiorTitle{color:#f5e7b0;font-size:18px}",
+            "#closeInterior{width:36px;height:32px;background:#343a40;color:#eee;border:1px solid #687078;border-radius:5px;cursor:pointer;font-size:19px}",
+            "#interiorBody{display:grid;grid-template-columns:minmax(210px,260px) minmax(0,1fr) minmax(210px,290px);min-height:0}",
+            "#interiorSidebar{grid-column:1;grid-row:1;display:grid;grid-template-rows:auto minmax(0,1fr);min-width:0;overflow:hidden;background:#20262a;border-right:1px solid #596068}",
+            "#interiorSidebarHeader,#interiorInfoHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:39px;padding:5px 7px 5px 12px;border-bottom:1px solid #465058;color:#f5e7b0}",
+            "#interiorSidebarContent{min-height:0;overflow:auto;padding:12px}",
+            "#interiorInfoPanel{grid-column:3;grid-row:1;display:grid;grid-template-rows:auto minmax(0,1fr);min-width:0;overflow:hidden;background:#20262a;border-left:1px solid #596068}",
+            "#interiorInfoContent{min-height:0;overflow:auto;padding:12px}",
+            "#toggleInteriorInfo{width:34px;height:30px;flex:0 0 auto;background:#343a40;color:#eee;border:1px solid #687078;border-radius:4px;cursor:pointer;font-size:17px}",
+            "#toggleInteriorInfo:hover{background:#454d55}",
+            "#interiorPanel.info-collapsed #interiorBody{grid-template-columns:minmax(210px,260px) minmax(0,1fr) 48px}",
+            "#interiorPanel.info-collapsed #interiorInfoHeader{justify-content:center;padding:5px 7px}",
+            "#interiorPanel.info-collapsed #interiorInfoHeader strong,#interiorPanel.info-collapsed #interiorInfoContent{display:none}",
+            "#interiorBreadcrumb{margin-bottom:10px;color:#aeb7bf;line-height:1.4}",
+            "#interiorBack{width:100%;margin-bottom:12px;padding:7px 10px;background:#343a40;color:#eee;border:1px solid #687078;border-radius:5px;cursor:pointer}",
+            "#interiorConnections{display:flex;flex-direction:column;gap:6px}",
+            ".interior-link{padding:7px 9px;text-align:left;background:#2e363c;color:#eee;border:1px solid #59656e;border-radius:5px;cursor:pointer}",
+            ".interior-link:hover{background:#3d4850}",
+            ".interior-link.surface{border-color:#4f9b72}",
+            "#interiorLayerPanel{margin:0 0 4px}",
+            "#interiorLayerPanel summary{cursor:pointer;color:#f5e7b0;font-weight:700}",
+            "#interiorLayerOptions{display:flex;flex-direction:column;gap:5px;margin-top:8px}",
+            "#interiorLayerOptions label{display:block;white-space:nowrap}",
+            "#interiorLayerChoices{display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-top:5px;border-top:1px solid #465058}",
+            "#interiorSearch{width:100%;box-sizing:border-box;margin:0 0 7px;padding:7px 8px;background:#11171b;color:#eee;border:1px solid #687078;border-radius:4px}",
+            "#interiorSearchResults{display:none;max-height:190px;overflow:auto;margin:0 0 10px;background:#151a1e;border:1px solid #596068;border-radius:4px}",
+            "#interiorSearchResults .search-result{font-size:12px}",
+            "#interiorStage{grid-column:2;grid-row:1;display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-width:0;min-height:0;background:#0d1114;overflow:hidden}",
+            "#interiorMapToolbar{display:flex;align-items:center;gap:6px;padding:7px 9px;background:#20262a;border-bottom:1px solid #596068}",
+            "#interiorMapToolbar button{min-width:34px;height:30px;padding:0 9px;background:#343a40;color:#eee;border:1px solid #687078;border-radius:4px;cursor:pointer}",
+            "#interiorZoomLabel{min-width:46px;text-align:center;color:#f5e7b0;font-weight:700}",
+            "#interiorViewport{position:relative;min-width:0;min-height:0;overflow:hidden;background:#070a0c;cursor:grab;user-select:none}",
+            "#interiorViewport.dragging{cursor:grabbing}",
+            "#interiorCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}",
+            "#interiorHint{min-height:20px;padding:6px 10px;color:#b9c2c8;text-align:center;background:#171d21;border-top:1px solid #414a51}",
+            "body.interior-page #toolbar,body.interior-page #viewport,body.interior-page #details,body.interior-page #help,body.interior-page #compassRose,body.interior-page #markerTooltip{display:none!important}",
+            "body.interior-page #interiorBackdrop{display:flex;padding:0;background:#070a0c}",
+            "body.interior-page #interiorPanel{width:100vw;height:100vh;border:0;border-radius:0;box-shadow:none}",
+            "body.interior-page #interiorLayerPanel{display:block}",
+            "@media (max-width:720px){#interiorBody{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto auto}#interiorStage{grid-column:1;grid-row:1}#interiorSidebar{grid-column:1;grid-row:2;max-height:180px;border-right:0;border-top:1px solid #596068}#interiorInfoPanel{grid-column:1;grid-row:3;max-height:210px;border-left:0;border-top:1px solid #596068}#interiorPanel.info-collapsed #interiorBody{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto 42px}#interiorConnections{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}",
             "</style>",
             "</head>",
             "<body>",
@@ -1408,6 +1637,7 @@ class MapaMundoApp(tk.Tk):
             f'  <label><input id="showAreaNames" type="checkbox" checked> '
             f'Nombres de áreas ({len(area_labels)})</label>',
             '  <label><input id="showCounts" type="checkbox"> Contadores por mapa</label>',
+            '  <label><input id="showTransfers" type="checkbox" checked> Traslados</label>',
         ]
         groups = [(0, "Recursos"), (9, "NPCs"), (18, "Mundo")]
         group_titles = {index: title for index, title in groups}
@@ -1453,33 +1683,50 @@ class MapaMundoApp(tk.Tk):
             '    <div class="setting-row"><label for="settingAreaSize">Nombres de áreas</label><input id="settingAreaSize" type="range" min="50" max="350" step="10"><output id="settingAreaSizeValue"></output></div>',
             '    <div class="setting-row"><label for="settingTooltip">Espera de información</label><input id="settingTooltip" type="range" min="300" max="3000" step="100"><output id="settingTooltipValue"></output></div>',
             '    <div class="setting-row"><label for="settingFont">Fuente de áreas</label><select id="settingFont"><option value="game">Fuente gráfica del juego</option><option value="alegreya">Alegreya Sans AO</option><option value="segoe">Segoe UI</option></select></div>',
+            '    <label class="setting-check"><input id="settingDetailedLists" type="checkbox"> Mostrar listados detallados en el panel del mapa</label>',
             '    <div class="settings-actions"><button id="resetSettings">Restaurar predeterminados</button><button id="saveSettings">Guardar y cerrar</button></div>',
+            '  </section>',
+            '</div>',
+            '<div id="interiorBackdrop" aria-hidden="true">',
+            '  <section id="interiorPanel" role="dialog" aria-modal="true" aria-labelledby="interiorTitle">',
+            '    <header id="interiorHeader"><b id="interiorTitle">Interior</b><button id="closeInterior" title="Cerrar" aria-label="Cerrar">&times;</button></header>',
+            '    <div id="interiorBody">',
+            '      <aside id="interiorSidebar"><div id="interiorSidebarHeader"><strong>Opciones del mapa</strong></div><div id="interiorSidebarContent"><details id="interiorLayerPanel" open><summary>Capas y marcadores</summary><div id="interiorLayerOptions"><label><input id="interiorShowNames" type="checkbox"> <span id="interiorNamesLabel">Nombres de mapas</span></label><label><input id="interiorShowCounts" type="checkbox"> Contadores por mapa</label><label><input id="interiorShowTransfers" type="checkbox"> Traslados</label><div id="interiorLayerChoices"></div></div></details></div></aside>',
+            '      <div id="interiorStage"><div id="interiorMapToolbar"><button id="interiorZoomOut" title="Alejar">-</button><span id="interiorZoomLabel">100%</span><button id="interiorZoomIn" title="Acercar">+</button><button id="interiorFit" title="Ver todo el interior">Ajustar</button><button id="interiorActual" title="Tamaño original">100%</button></div><div id="interiorViewport"><canvas id="interiorCanvas"></canvas></div><div id="interiorHint">Rueda: zoom · Arrastrar: mover · Doble clic: detalles o traslado</div></div>',
+            '      <aside id="interiorInfoPanel"><div id="interiorInfoHeader"><strong>Información y traslados</strong><button id="toggleInteriorInfo" title="Minimizar panel" aria-label="Minimizar panel">&#9654;</button></div><div id="interiorInfoContent"><input id="interiorSearch" type="text" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Buscar mapa, NPC, quest o recurso..."><div id="interiorSearchResults"></div><div id="interiorBreadcrumb"></div><button id="interiorBack">Volver al mundo</button><strong id="interiorConnectionsTitle">Traslados del mapa</strong><div id="interiorConnections"></div></div></aside>',
+            '    </div>',
             '  </section>',
             '</div>',
             "<script>",
             f"const LAYERS={embedded_layers};",
             f"const MAP_INFO={embedded_map_info};",
             f"const CONNECTIONS={embedded_connections};",
+            f"const MAP_EXITS={embedded_map_exits};",
+            f"const INTERIOR_COMPONENTS={embedded_interior_components};",
+            f"const INTERIOR_COMPONENT_BY_MAP={embedded_interior_component_by_map};",
             f"const NPC_QUESTS={embedded_offers};",
             f"const SEARCH_ITEMS={embedded_search};",
             f"const OBJ_ICONS={embedded_object_icons};",
             f"const NPC_ICONS={embedded_npc_icons};",
             f"const NPC_FACE_ICONS=new Set({embedded_npc_face_icons});",
             f"const AREA_LABELS={embedded_area_labels};",
+            f"const SURFACE_MAPS=new Set({embedded_surface_maps});",
             f"const MAP_FONT={embedded_map_font};",
             f"const COLS={world.ancho}, ROWS={world.alto}, TILE_W=592, TILE_H=640, MAX_MAP_PADDING=512;",
-            "const DEFAULT_SETTINGS=Object.freeze({faceScale:30,bodyScale:70,objectScale:100,areaScale:260,tooltipDelay:1000,areaFont:'game'}),SETTING_LIMITS={faceScale:[5,80],bodyScale:[30,120],objectScale:[40,160],areaScale:[50,350],tooltipDelay:[300,3000]},SETTINGS_KEY='mapaMundoSettingsV4';",
-            "function validatedSettings(raw){const value={...DEFAULT_SETTINGS};Object.entries(SETTING_LIMITS).forEach(([key,range])=>{const number=Number(raw&&raw[key]);if(Number.isFinite(number))value[key]=Math.min(range[1],Math.max(range[0],number));});if(['game','alegreya','segoe'].includes(raw&&raw.areaFont))value.areaFont=raw.areaFont;return value;}",
+            "const PAGE_PARAMS=new URLSearchParams(location.search),IS_INTERIOR_PAGE=/^interiores\\.html?$/i.test(location.pathname.split('/').pop()||''),REQUESTED_MAP=Number(PAGE_PARAMS.get('map')||0),REQUESTED_ORIGIN=Number(PAGE_PARAMS.get('origin')||0);if(IS_INTERIOR_PAGE)document.body.classList.add('interior-page');",
+            "const DEFAULT_SETTINGS=Object.freeze({faceScale:30,bodyScale:70,objectScale:100,areaScale:260,tooltipDelay:1000,areaFont:'game',showDetailedLists:false}),SETTING_LIMITS={faceScale:[5,80],bodyScale:[30,120],objectScale:[40,160],areaScale:[50,350],tooltipDelay:[300,3000]},SETTINGS_KEY='mapaMundoSettingsV4';",
+            "function validatedSettings(raw){const value={...DEFAULT_SETTINGS};Object.entries(SETTING_LIMITS).forEach(([key,range])=>{const number=Number(raw&&raw[key]);if(Number.isFinite(number))value[key]=Math.min(range[1],Math.max(range[0],number));});if(['game','alegreya','segoe'].includes(raw&&raw.areaFont))value.areaFont=raw.areaFont;if(typeof (raw&&raw.showDetailedLists)==='boolean')value.showDetailedLists=raw.showDetailedLists;return value;}",
             "function loadSettings(){try{return validatedSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));}catch(_error){return {...DEFAULT_SETTINGS};}}",
             "let SETTINGS=loadSettings();",
-            "const viewport=document.getElementById('viewport'),world=document.getElementById('world'),mapCanvas=document.getElementById('mapCanvas'),mapContext=mapCanvas.getContext('2d'),zoomLabel=document.getElementById('zoomLabel'),toolbar=document.getElementById('toolbar'),details=document.getElementById('details'),detailsTitle=document.getElementById('detailsTitle'),detailsContent=document.getElementById('detailsContent'),markerTooltip=document.getElementById('markerTooltip'),settingsBackdrop=document.getElementById('settingsBackdrop');",
-            "const OBJ_IMAGES={};Object.entries(OBJ_ICONS).forEach(([id,source])=>{const image=new Image();image.onload=scheduleRender;image.onerror=scheduleRender;image.src=source;OBJ_IMAGES[id]=image;});",
-            "const NPC_IMAGES={};Object.entries(NPC_ICONS).forEach(([id,source])=>{const image=new Image();image.onload=scheduleRender;image.onerror=scheduleRender;image.src=source;NPC_IMAGES[id]=image;});",
+            "const viewport=document.getElementById('viewport'),world=document.getElementById('world'),mapCanvas=document.getElementById('mapCanvas'),mapContext=mapCanvas.getContext('2d'),zoomLabel=document.getElementById('zoomLabel'),toolbar=document.getElementById('toolbar'),details=document.getElementById('details'),detailsTitle=document.getElementById('detailsTitle'),detailsContent=document.getElementById('detailsContent'),markerTooltip=document.getElementById('markerTooltip'),settingsBackdrop=document.getElementById('settingsBackdrop'),interiorBackdrop=document.getElementById('interiorBackdrop'),interiorTitle=document.getElementById('interiorTitle'),interiorBreadcrumb=document.getElementById('interiorBreadcrumb'),interiorConnections=document.getElementById('interiorConnections'),interiorConnectionsTitle=document.getElementById('interiorConnectionsTitle'),interiorBack=document.getElementById('interiorBack'),interiorViewport=document.getElementById('interiorViewport'),interiorCanvas=document.getElementById('interiorCanvas'),interiorContext=interiorCanvas.getContext('2d'),interiorHint=document.getElementById('interiorHint'),interiorZoomLabel=document.getElementById('interiorZoomLabel');",
+            "const OBJ_IMAGES={};Object.entries(OBJ_ICONS).forEach(([id,source])=>{const image=new Image();image.onload=()=>{scheduleRender();scheduleInteriorRender();};image.onerror=()=>{scheduleRender();scheduleInteriorRender();};image.src=source;OBJ_IMAGES[id]=image;});",
+            "const NPC_IMAGES={};Object.entries(NPC_ICONS).forEach(([id,source])=>{const image=new Image();image.onload=()=>{scheduleRender();scheduleInteriorRender();};image.onerror=()=>{scheduleRender();scheduleInteriorRender();};image.src=source;NPC_IMAGES[id]=image;});",
             "const MAP_FONT_IMAGE=new Image(),AREA_LABEL_CACHE={};MAP_FONT_IMAGE.onload=scheduleRender;MAP_FONT_IMAGE.onerror=scheduleRender;MAP_FONT_IMAGE.src='assets/graphics/19054.png';",
             "world.style.gridTemplateColumns=`repeat(${COLS},${TILE_W}px)`;",
-            "let scale=1,panX=0,panY=0,dragging=false,moved=false,startX=0,startY=0,startPanX=0,startPanY=0,renderPending=false,mapCells=[],hoverTimer=0,hoverKey='';const VISIBLE_MARKERS=[];",
+            "let scale=1,panX=0,panY=0,dragging=false,moved=false,startX=0,startY=0,startPanX=0,startPanY=0,renderPending=false,mapCells=[],hoverTimer=0,hoverKey='',pinnedTooltipKey='',interiorOrigin=0,interiorCurrent=0,interiorHistory=[],interiorComponent=null,interiorMaps=[],interiorScale=1,interiorPanX=0,interiorPanY=0,interiorDragging=false,interiorMoved=false,interiorStartX=0,interiorStartY=0,interiorStartPanX=0,interiorStartPanY=0,interiorRenderPending=false;const VISIBLE_MARKERS=[],INTERIOR_HITS=[],INTERIOR_IMAGES={};",
             "function separateFaceMarker(x,y,width,height,occupied){const gap=Math.max(1,2*scale),originBottom=y+4*scale,makeBox=(cx,bottom)=>({left:cx-width/2-gap,right:cx+width/2+gap,top:bottom-height-gap,bottom:bottom+gap,cx,bottom}),overlaps=box=>occupied.some(other=>box.left<other.right&&box.right>other.left&&box.top<other.bottom&&box.bottom>other.top);let box=makeBox(x,originBottom);if(!overlaps(box)){occupied.push(box);return box;}const nudge=Math.max(4*scale,Math.min(width,height)*.16);for(let attempt=1;attempt<=24;attempt++){const ring=Math.ceil(attempt/8),angle=((attempt-1)%8)*Math.PI/4,distance=nudge*ring,cx=x+Math.cos(angle)*distance,bottom=originBottom+Math.sin(angle)*distance;if(!occupied.some(other=>Math.hypot(cx-other.cx,bottom-other.bottom)<nudge*.7)){box=makeBox(cx,bottom);occupied.push(box);return box;}}occupied.push(box);return box;}",
             "function drawMarkerSet(points,col,row,mapId,layer,occupiedFaces){if(!points)return;mapContext.fillStyle=layer.color;mapContext.strokeStyle='#071015';mapContext.lineWidth=Math.max(1,1.25*scale);const radius=Math.max(1.5,4.5*scale);points.forEach(p=>{const x=panX+(col*TILE_W+(p.x-14+.5)*8)*scale,y=panY+(row*TILE_H+(p.y-11+.5)*8)*scale,img=layer.kind==='object'?OBJ_IMAGES[p.iconObj||p.obj]:NPC_IMAGES[p.npc],key=`${mapId}:${layer.id}:${p.x}:${p.y}:${p.npc||p.obj||''}`;if(img&&img.complete&&img.naturalWidth&&scale>=.12){const usesFace=layer.kind!=='object'&&NPC_FACE_ICONS.has(Number(p.npc)),layerScale=(layer.kind==='object'?SETTINGS.objectScale:(usesFace?SETTINGS.faceScale:SETTINGS.bodyScale))/100;let width=img.naturalWidth*scale*layerScale,height=img.naturalHeight*scale*layerScale;const maximum=192*scale,largest=Math.max(width,height);if(largest>maximum){const factor=maximum/largest;width*=factor;height*=factor;}const position=usesFace?separateFaceMarker(x,y,width,height,occupiedFaces):{cx:x,bottom:y+4*scale};mapContext.save();mapContext.shadowColor='#000c';mapContext.shadowBlur=Math.max(1,2*scale);mapContext.drawImage(img,position.cx-width/2,position.bottom-height,width,height);mapContext.restore();VISIBLE_MARKERS.push({key,mapId,layer,point:p,left:position.cx-width/2,top:position.bottom-height,right:position.cx+width/2,bottom:position.bottom});}else{mapContext.beginPath();mapContext.arc(x,y,radius,0,Math.PI*2);mapContext.fill();mapContext.stroke();const hitRadius=Math.max(6,radius);VISIBLE_MARKERS.push({key,mapId,layer,point:p,left:x-hitRadius,top:y-hitRadius,right:x+hitRadius,bottom:y+hitRadius});}});}",
+            "function drawInteriorEntryMarkers(){if(!document.getElementById('showTransfers').checked)return;const w=viewport.clientWidth,h=viewport.clientHeight;for(let index=0;index<mapCells.length;index++){const col=index%COLS,row=Math.floor(index/COLS),mapId=Number(mapCells[index].dataset.map),entries=(MAP_EXITS[mapId]||[]).filter(exit=>!exit.border);if(!entries.length)continue;entries.forEach(exit=>{const x=panX+(col*TILE_W+(exit.x-14+.5)*8)*scale,y=panY+(row*TILE_H+(exit.y-11+.5)*8)*scale;if(x<-15||y<-15||x>w+15||y>h+15)return;const size=Math.max(4,8*Math.sqrt(scale)),hitRadius=Math.max(9,size+3),key=`${mapId}:interior:${exit.toMap}:${exit.x}:${exit.y}`;mapContext.save();mapContext.translate(x,y);mapContext.rotate(Math.PI/4);mapContext.fillStyle='#ffad3b';mapContext.strokeStyle='#1b1003';mapContext.lineWidth=Math.max(1.5,2*scale);mapContext.fillRect(-size,-size,size*2,size*2);mapContext.strokeRect(-size,-size,size*2,size*2);mapContext.restore();mapContext.beginPath();mapContext.fillStyle='#fff4ce';mapContext.arc(x,y,Math.max(1.5,size*.24),0,Math.PI*2);mapContext.fill();VISIBLE_MARKERS.push({kind:'interior',key,mapId,point:exit,left:x-hitRadius,top:y-hitRadius,right:x+hitRadius,bottom:y+hitRadius});});}}",
             "function areaLabelBitmap(text){if(AREA_LABEL_CACHE[text])return AREA_LABEL_CACHE[text];if(!MAP_FONT_IMAGE.complete||!MAP_FONT_IMAGE.naturalWidth)return null;const glyphs=Array.from(text).map(character=>character===' '?null:(MAP_FONT[character]||MAP_FONT['?']));const width=Math.max(1,glyphs.reduce((total,glyph)=>total+(glyph?glyph[2]:12),0)),canvas=document.createElement('canvas'),context=canvas.getContext('2d');canvas.width=width;canvas.height=64;let x=0;glyphs.forEach(glyph=>{if(glyph){context.drawImage(MAP_FONT_IMAGE,glyph[0],glyph[1],glyph[2],glyph[3],x,0,glyph[2],glyph[3]);x+=glyph[2];}else{x+=12;}});context.globalCompositeOperation='source-in';context.fillStyle='#f5e7b0';context.fillRect(0,0,width,64);AREA_LABEL_CACHE[text]=canvas;return canvas;}",
             "function drawAreaLabels(){if(!document.getElementById('showAreaNames').checked)return;const w=viewport.clientWidth,h=viewport.clientHeight,fontSize=Math.max(7,Math.min(55,30*Math.sqrt(scale)*SETTINGS.areaScale/100)),occupied=[],gameFont=SETTINGS.areaFont==='game',fontFamily=SETTINGS.areaFont==='alegreya'?\"'Alegreya Sans AO',serif\":\"'Segoe UI',Arial,sans-serif\",candidates=AREA_LABELS.filter(label=>scale>=.18||label.count>=(scale<.1?3:2)||String(label.zone).toUpperCase()==='CIUDAD').sort((a,b)=>{const cityA=String(a.zone).toUpperCase()==='CIUDAD'?1:0,cityB=String(b.zone).toUpperCase()==='CIUDAD'?1:0;return cityB-cityA||b.count-a.count||a.name.localeCompare(b.name);});mapContext.save();if(!gameFont){mapContext.font=`700 ${fontSize}px ${fontFamily}`;mapContext.textAlign='center';mapContext.textBaseline='middle';mapContext.lineJoin='round';mapContext.lineWidth=Math.max(3,fontSize*.16);mapContext.strokeStyle='#10120fe8';mapContext.fillStyle='#f5e7b0';}candidates.forEach(label=>{const bitmap=gameFont?areaLabelBitmap(label.name):null;if(gameFont&&!bitmap)return;const x=panX+label.col*TILE_W*scale,y=panY+label.row*TILE_H*scale;if(x<-180||y<-60||x>w+180||y>h+60)return;const maxWidth=Math.max(90,Math.sqrt(label.count)*TILE_W*scale*1.15),naturalWidth=gameFont?bitmap.width*fontSize/64:mapContext.measureText(label.name).width,textWidth=Math.min(naturalWidth,maxWidth),textHeight=fontSize,padding=fontSize*.45,box={left:x-textWidth/2-padding,right:x+textWidth/2+padding,top:y-textHeight/2-padding,bottom:y+textHeight/2+padding};if(occupied.some(other=>box.left<other.right&&box.right>other.left&&box.top<other.bottom&&box.bottom>other.top))return;occupied.push(box);if(gameFont){mapContext.save();mapContext.shadowColor='#10120f';mapContext.shadowBlur=Math.max(3,fontSize*.2);mapContext.shadowOffsetX=Math.max(1,fontSize*.04);mapContext.shadowOffsetY=Math.max(1,fontSize*.04);mapContext.drawImage(bitmap,x-textWidth/2,y-textHeight/2,textWidth,textHeight);mapContext.restore();}else{mapContext.strokeText(label.name,x,y,maxWidth);mapContext.fillText(label.name,x,y,maxWidth);}});mapContext.restore();}",
             "function drawVisibleMarkers(){const active=LAYERS.filter(layer=>document.getElementById('layer-'+layer.id).checked);if(!active.length)return;const w=viewport.clientWidth,h=viewport.clientHeight,occupiedFaces=[];for(let index=0;index<mapCells.length;index++){const col=index%COLS,row=Math.floor(index/COLS),x0=panX+col*TILE_W*scale,y0=panY+row*TILE_H*scale,x1=x0+TILE_W*scale,y1=y0+TILE_H*scale;if(x1<0||y1<0||x0>w||y0>h)continue;const id=Number(mapCells[index].dataset.map);active.forEach(layer=>drawMarkerSet(layer.maps[id],col,row,id,layer,occupiedFaces));}}",
@@ -1487,7 +1734,7 @@ class MapaMundoApp(tk.Tk):
             "function imagePadding(image){return{x:Math.max(0,(image.naturalWidth-TILE_W)/2),y:Math.max(0,(image.naturalHeight-TILE_H)/2)};}",
             "function drawMapCenter(image,col,row){const padding=imagePadding(image),x0=Math.floor(panX+col*TILE_W*scale),y0=Math.floor(panY+row*TILE_H*scale),x1=Math.ceil(panX+(col+1)*TILE_W*scale),y1=Math.ceil(panY+(row+1)*TILE_H*scale);mapContext.drawImage(image,padding.x,padding.y,TILE_W,TILE_H,x0,y0,x1-x0,y1-y0);}",
             "function drawMapOverflow(image,col,row){const padding=imagePadding(image);if(padding.x<=0&&padding.y<=0)return;const drawPart=(sx,sy,sw,sh)=>{if(sw<=0||sh<=0)return;const dx0=Math.floor(panX+(col*TILE_W-padding.x+sx)*scale),dy0=Math.floor(panY+(row*TILE_H-padding.y+sy)*scale),dx1=Math.ceil(panX+(col*TILE_W-padding.x+sx+sw)*scale),dy1=Math.ceil(panY+(row*TILE_H-padding.y+sy+sh)*scale);mapContext.drawImage(image,sx,sy,sw,sh,dx0,dy0,dx1-dx0,dy1-dy0);};drawPart(0,0,image.naturalWidth,padding.y);drawPart(0,padding.y+TILE_H,image.naturalWidth,padding.y);drawPart(0,padding.y,padding.x,TILE_H);drawPart(padding.x+TILE_W,padding.y,padding.x,TILE_H);}",
-            "function renderVisible(){renderPending=false;VISIBLE_MARKERS.length=0;const dpr=window.devicePixelRatio||1,w=viewport.clientWidth,h=viewport.clientHeight;if(mapCanvas.width!==Math.round(w*dpr)||mapCanvas.height!==Math.round(h*dpr)){mapCanvas.width=Math.round(w*dpr);mapCanvas.height=Math.round(h*dpr);}mapContext.setTransform(dpr,0,0,dpr,0,0);mapContext.clearRect(0,0,w,h);for(let index=0;index<mapCells.length;index++){const col=index%COLS,row=Math.floor(index/COLS),x0=panX+col*TILE_W*scale,y0=panY+row*TILE_H*scale,x1=x0+TILE_W*scale,y1=y0+TILE_H*scale;if(x1<0||y1<0||x0>w||y0>h)continue;const image=mapCells[index].querySelector('.map-image');ensureImage(image);if(image.complete&&image.naturalWidth)drawMapCenter(image,col,row);}for(let index=0;index<mapCells.length;index++){const image=mapCells[index].querySelector('.map-image'),col=index%COLS,row=Math.floor(index/COLS),estimatedX=panX+col*TILE_W*scale,estimatedY=panY+row*TILE_H*scale,margin=MAX_MAP_PADDING*scale;if(estimatedX+TILE_W*scale+margin<0||estimatedY+TILE_H*scale+margin<0||estimatedX-margin>w||estimatedY-margin>h)continue;ensureImage(image);if(!image.complete||!image.naturalWidth)continue;const padding=imagePadding(image),x0=panX+(col*TILE_W-padding.x)*scale,y0=panY+(row*TILE_H-padding.y)*scale,x1=x0+image.naturalWidth*scale,y1=y0+image.naturalHeight*scale;if(x1<0||y1<0||x0>w||y0>h)continue;drawMapOverflow(image,col,row);}drawAreaLabels();drawVisibleMarkers();}",
+            "function renderVisible(){renderPending=false;VISIBLE_MARKERS.length=0;const dpr=window.devicePixelRatio||1,w=viewport.clientWidth,h=viewport.clientHeight;if(mapCanvas.width!==Math.round(w*dpr)||mapCanvas.height!==Math.round(h*dpr)){mapCanvas.width=Math.round(w*dpr)||1;mapCanvas.height=Math.round(h*dpr)||1;}mapContext.setTransform(dpr,0,0,dpr,0,0);mapContext.clearRect(0,0,w,h);for(let index=0;index<mapCells.length;index++){const col=index%COLS,row=Math.floor(index/COLS),x0=panX+col*TILE_W*scale,y0=panY+row*TILE_H*scale,x1=x0+TILE_W*scale,y1=y0+TILE_H*scale;if(x1<0||y1<0||x0>w||y0>h)continue;const image=mapCells[index].querySelector('.map-image');ensureImage(image);if(image.complete&&image.naturalWidth)drawMapCenter(image,col,row);}for(let index=0;index<mapCells.length;index++){const image=mapCells[index].querySelector('.map-image'),col=index%COLS,row=Math.floor(index/COLS),estimatedX=panX+col*TILE_W*scale,estimatedY=panY+row*TILE_H*scale,margin=MAX_MAP_PADDING*scale;if(estimatedX+TILE_W*scale+margin<0||estimatedY+TILE_H*scale+margin<0||estimatedX-margin>w||estimatedY-margin>h)continue;ensureImage(image);if(!image.complete||!image.naturalWidth)continue;const padding=imagePadding(image),x0=panX+(col*TILE_W-padding.x)*scale,y0=panY+(row*TILE_H-padding.y)*scale,x1=x0+image.naturalWidth*scale,y1=y0+image.naturalHeight*scale;if(x1<0||y1<0||x0>w||y0>h)continue;drawMapOverflow(image,col,row);}drawAreaLabels();drawVisibleMarkers();drawInteriorEntryMarkers();}",
             "function scheduleRender(){if(renderPending)return;renderPending=true;requestAnimationFrame(renderVisible);}",
             "function apply(){world.style.transform=`translate(${panX}px,${panY}px) scale(${scale})`;zoomLabel.textContent=`${Math.round(scale*100)}%`;scheduleRender();}",
             "function clampScale(v){return Math.min(2,Math.max(0.025,v));}",
@@ -1506,36 +1753,81 @@ class MapaMundoApp(tk.Tk):
             "document.getElementById('toggleToolbar').onclick=()=>togglePanel(toolbar,document.getElementById('toggleToolbar'),'Reducir controles','Desplegar controles');",
             "document.getElementById('toggleDetails').onclick=()=>togglePanel(details,document.getElementById('toggleDetails'),'Reducir información','Desplegar información');",
             "const PANEL_SETTINGS_KEY='mapaMundoPanelV1';",
-            "function loadPanelSettings(){try{const saved=JSON.parse(localStorage.getItem(PANEL_SETTINGS_KEY)||'null');if(!saved||typeof saved!=='object')return;if(typeof saved.showAreaNames==='boolean')document.getElementById('showAreaNames').checked=saved.showAreaNames;if(typeof saved.showCounts==='boolean')document.getElementById('showCounts').checked=saved.showCounts;if(saved.layers&&typeof saved.layers==='object')LAYERS.forEach(layer=>{const checked=saved.layers[layer.id];if(typeof checked==='boolean')document.getElementById('layer-'+layer.id).checked=checked;});}catch(_error){/* Conserva los valores predeterminados si el almacenamiento no está disponible. */}}",
-            "function savePanelSettings(){try{const layers={};LAYERS.forEach(layer=>layers[layer.id]=document.getElementById('layer-'+layer.id).checked);localStorage.setItem(PANEL_SETTINGS_KEY,JSON.stringify({showAreaNames:document.getElementById('showAreaNames').checked,showCounts:document.getElementById('showCounts').checked,layers}));}catch(_error){/* El archivo local puede bloquear almacenamiento. */}}",
+            "function loadPanelSettings(){try{const saved=JSON.parse(localStorage.getItem(PANEL_SETTINGS_KEY)||'null');if(!saved||typeof saved!=='object')return;if(typeof saved.showAreaNames==='boolean')document.getElementById('showAreaNames').checked=saved.showAreaNames;if(typeof saved.showCounts==='boolean')document.getElementById('showCounts').checked=saved.showCounts;if(typeof saved.showTransfers==='boolean')document.getElementById('showTransfers').checked=saved.showTransfers;if(saved.layers&&typeof saved.layers==='object')LAYERS.forEach(layer=>{const checked=saved.layers[layer.id];if(typeof checked==='boolean')document.getElementById('layer-'+layer.id).checked=checked;});}catch(_error){/* Conserva los valores predeterminados si el almacenamiento no está disponible. */}}",
+            "function savePanelSettings(){try{const layers={};LAYERS.forEach(layer=>layers[layer.id]=document.getElementById('layer-'+layer.id).checked);localStorage.setItem(PANEL_SETTINGS_KEY,JSON.stringify({showAreaNames:document.getElementById('showAreaNames').checked,showCounts:document.getElementById('showCounts').checked,showTransfers:document.getElementById('showTransfers').checked,layers}));}catch(_error){/* El archivo local puede bloquear almacenamiento. */}}",
             "function updateCountVisibility(){document.body.classList.toggle('counts-on',document.getElementById('showCounts').checked);document.querySelectorAll('.map-count').forEach(badge=>badge.classList.toggle('layer-active',document.getElementById('layer-'+badge.dataset.layer).checked));}",
-            "document.getElementById('showCounts').onchange=()=>{savePanelSettings();updateCountVisibility();};LAYERS.forEach(layer=>document.getElementById('layer-'+layer.id).onchange=()=>{savePanelSettings();updateCountVisibility();scheduleRender();});",
-            "document.getElementById('showAreaNames').onchange=()=>{savePanelSettings();scheduleRender();};loadPanelSettings();updateCountVisibility();",
-            "const SETTING_INPUTS={faceScale:document.getElementById('settingFace'),bodyScale:document.getElementById('settingBody'),objectScale:document.getElementById('settingObject'),areaScale:document.getElementById('settingAreaSize'),tooltipDelay:document.getElementById('settingTooltip')},SETTING_OUTPUTS={faceScale:document.getElementById('settingFaceValue'),bodyScale:document.getElementById('settingBodyValue'),objectScale:document.getElementById('settingObjectValue'),areaScale:document.getElementById('settingAreaSizeValue'),tooltipDelay:document.getElementById('settingTooltipValue')},settingFont=document.getElementById('settingFont');",
-            "function syncSettingsControls(){Object.entries(SETTING_INPUTS).forEach(([key,input])=>{input.value=SETTINGS[key];SETTING_OUTPUTS[key].textContent=key==='tooltipDelay'?`${(SETTINGS[key]/1000).toFixed(1)} s`:`${Math.round(SETTINGS[key])}%`;});settingFont.value=SETTINGS.areaFont;}",
-            "function applySettingsControls(){const raw={areaFont:settingFont.value};Object.entries(SETTING_INPUTS).forEach(([key,input])=>raw[key]=Number(input.value));SETTINGS=validatedSettings(raw);syncSettingsControls();hideMarkerTooltip();scheduleRender();}",
+            "const interiorLayerChoices=document.getElementById('interiorLayerChoices'),interiorShowNames=document.getElementById('interiorShowNames'),interiorShowCounts=document.getElementById('interiorShowCounts'),interiorShowTransfers=document.getElementById('interiorShowTransfers'),interiorSearch=document.getElementById('interiorSearch'),interiorSearchResults=document.getElementById('interiorSearchResults'),INTERIOR_LAYER_INPUTS={},INTERIOR_LAYER_LABELS={};const interiorGroups={0:'Recursos',9:'NPCs',18:'Mundo'};LAYERS.forEach((layer,index)=>{if(interiorGroups[index]){const title=document.createElement('span');title.className='layer-title';title.textContent=interiorGroups[index];interiorLayerChoices.appendChild(title);}const label=document.createElement('label'),input=document.createElement('input'),text=document.createElement('span');input.type='checkbox';input.id='interior-layer-'+layer.id;text.textContent=' '+layer.label;label.append(input,text);interiorLayerChoices.appendChild(label);INTERIOR_LAYER_INPUTS[layer.id]=input;INTERIOR_LAYER_LABELS[layer.id]=text;});",
+            "function syncInteriorLayerControls(){interiorShowNames.checked=document.getElementById('showAreaNames').checked;interiorShowCounts.checked=document.getElementById('showCounts').checked;interiorShowTransfers.checked=document.getElementById('showTransfers').checked;document.getElementById('interiorNamesLabel').textContent=`Nombres de mapas (${interiorMaps.length})`;LAYERS.forEach(layer=>{INTERIOR_LAYER_INPUTS[layer.id].checked=document.getElementById('layer-'+layer.id).checked;const count=interiorMaps.reduce((total,item)=>total+(layer.maps[item.id]||[]).length,0);INTERIOR_LAYER_LABELS[layer.id].textContent=` ${layer.label} (${count})`;});}",
+            "const interiorPanel=document.getElementById('interiorPanel'),toggleInteriorInfo=document.getElementById('toggleInteriorInfo'),INTERIOR_INFO_KEY='mapaMundoInteriorSidebarV1';function setInteriorInfoCollapsed(collapsed,save=false){interiorPanel.classList.toggle('info-collapsed',collapsed);toggleInteriorInfo.textContent=collapsed?'\u25c0':'\u25b6';toggleInteriorInfo.title=toggleInteriorInfo.ariaLabel=collapsed?'Mostrar información y traslados':'Minimizar información y traslados';toggleInteriorInfo.setAttribute('aria-expanded',String(!collapsed));if(save){try{localStorage.setItem(INTERIOR_INFO_KEY,collapsed?'1':'0');}catch(_error){/* El archivo local puede bloquear almacenamiento. */}}requestAnimationFrame(()=>{if(interiorComponent)fitInterior();});}let interiorInfoCollapsed=false;try{interiorInfoCollapsed=localStorage.getItem(INTERIOR_INFO_KEY)==='1';}catch(_error){/* Conserva el panel abierto. */}setInteriorInfoCollapsed(interiorInfoCollapsed);toggleInteriorInfo.onclick=()=>setInteriorInfoCollapsed(!interiorPanel.classList.contains('info-collapsed'),true);",
+            "function panelOptionChanged(){savePanelSettings();updateCountVisibility();syncInteriorLayerControls();hideMarkerTooltip();scheduleRender();scheduleInteriorRender();}",
+            "document.getElementById('showCounts').onchange=panelOptionChanged;document.getElementById('showTransfers').onchange=panelOptionChanged;document.getElementById('showAreaNames').onchange=panelOptionChanged;LAYERS.forEach(layer=>document.getElementById('layer-'+layer.id).onchange=panelOptionChanged);",
+            "interiorShowNames.onchange=()=>{document.getElementById('showAreaNames').checked=interiorShowNames.checked;panelOptionChanged();};interiorShowCounts.onchange=()=>{document.getElementById('showCounts').checked=interiorShowCounts.checked;panelOptionChanged();};interiorShowTransfers.onchange=()=>{document.getElementById('showTransfers').checked=interiorShowTransfers.checked;panelOptionChanged();};LAYERS.forEach(layer=>INTERIOR_LAYER_INPUTS[layer.id].onchange=()=>{document.getElementById('layer-'+layer.id).checked=INTERIOR_LAYER_INPUTS[layer.id].checked;panelOptionChanged();});",
+            "loadPanelSettings();updateCountVisibility();syncInteriorLayerControls();",
+            "const SETTING_INPUTS={faceScale:document.getElementById('settingFace'),bodyScale:document.getElementById('settingBody'),objectScale:document.getElementById('settingObject'),areaScale:document.getElementById('settingAreaSize'),tooltipDelay:document.getElementById('settingTooltip')},SETTING_OUTPUTS={faceScale:document.getElementById('settingFaceValue'),bodyScale:document.getElementById('settingBodyValue'),objectScale:document.getElementById('settingObjectValue'),areaScale:document.getElementById('settingAreaSizeValue'),tooltipDelay:document.getElementById('settingTooltipValue')},settingFont=document.getElementById('settingFont'),settingDetailedLists=document.getElementById('settingDetailedLists');",
+            "function syncSettingsControls(){Object.entries(SETTING_INPUTS).forEach(([key,input])=>{input.value=SETTINGS[key];SETTING_OUTPUTS[key].textContent=key==='tooltipDelay'?`${(SETTINGS[key]/1000).toFixed(1)} s`:`${Math.round(SETTINGS[key])}%`;});settingFont.value=SETTINGS.areaFont;settingDetailedLists.checked=SETTINGS.showDetailedLists;}",
+            "function applySettingsControls(){const raw={areaFont:settingFont.value,showDetailedLists:settingDetailedLists.checked};Object.entries(SETTING_INPUTS).forEach(([key,input])=>raw[key]=Number(input.value));SETTINGS=validatedSettings(raw);syncSettingsControls();hideMarkerTooltip();const selected=document.querySelector('.map-cell.selected');if(selected&&details.style.display!=='none')showMapDetails(selected);scheduleRender();scheduleInteriorRender();}",
             "function saveCurrentSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(SETTINGS));}catch(_error){/* El archivo local puede bloquear almacenamiento. */}}",
             "function openSettings(){syncSettingsControls();settingsBackdrop.classList.add('open');settingsBackdrop.setAttribute('aria-hidden','false');document.getElementById('settingFace').focus();}",
             "function closeSettings(save=true){if(save)saveCurrentSettings();settingsBackdrop.classList.remove('open');settingsBackdrop.setAttribute('aria-hidden','true');}",
-            "Object.values(SETTING_INPUTS).forEach(input=>input.addEventListener('input',applySettingsControls));settingFont.addEventListener('change',()=>{applySettingsControls();if(document.fonts&&SETTINGS.areaFont==='alegreya')document.fonts.load(\"700 24px 'Alegreya Sans AO'\").then(scheduleRender);});",
-            "document.getElementById('resetSettings').onclick=()=>{SETTINGS={...DEFAULT_SETTINGS};syncSettingsControls();saveCurrentSettings();hideMarkerTooltip();scheduleRender();};document.getElementById('saveSettings').onclick=()=>closeSettings(true);settingsBackdrop.addEventListener('pointerdown',event=>{if(event.target===settingsBackdrop)closeSettings(true);});syncSettingsControls();",
+            "Object.values(SETTING_INPUTS).forEach(input=>input.addEventListener('input',applySettingsControls));settingDetailedLists.addEventListener('change',applySettingsControls);settingFont.addEventListener('change',()=>{applySettingsControls();if(document.fonts&&SETTINGS.areaFont==='alegreya')document.fonts.load(\"700 24px 'Alegreya Sans AO'\").then(scheduleRender);});",
+            "document.getElementById('resetSettings').onclick=()=>{SETTINGS={...DEFAULT_SETTINGS};syncSettingsControls();saveCurrentSettings();hideMarkerTooltip();const selected=document.querySelector('.map-cell.selected');if(selected&&details.style.display!=='none')showMapDetails(selected);scheduleRender();scheduleInteriorRender();};document.getElementById('saveSettings').onclick=()=>closeSettings(true);settingsBackdrop.addEventListener('pointerdown',event=>{if(event.target===settingsBackdrop)closeSettings(true);});syncSettingsControls();",
             "function escapeHtml(value){return String(value).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[ch]));}",
-            "function markerTooltipHtml(hit){const p=hit.point,layer=hit.layer,isObject=layer.kind==='object',identity=isObject?`Objeto ${p.obj||''}`:`NPC ${p.npc||''}`,title=p.name||p.resourceName||identity,lines=[`${escapeHtml(layer.label)} · Mapa ${hit.mapId}`,`X ${p.x}, Y ${p.y}${identity?' · '+escapeHtml(identity):''}`];if(p.resourceName)lines.push(`Recurso: ${escapeHtml(p.resourceName)}`);if(layer.kind==='quest'){const quests=NPC_QUESTS[p.npc]||[];if(quests.length)lines.push(`Quests: ${quests.map(q=>escapeHtml(q.name)).join(', ')}`);}return `<strong>${escapeHtml(title)}</strong>${lines.join('<br>')}`;}",
-            "function hideMarkerTooltip(){clearTimeout(hoverTimer);hoverTimer=0;hoverKey='';markerTooltip.style.display='none';}",
+            "function coordinate(value){const number=Number(value);return Number.isInteger(number)?String(number):number.toFixed(1);}",
+            "function mapDisplayName(id){id=Number(id);if(id<0)return 'Volver al acceso anterior';const info=MAP_INFO[id]||{};return `Mapa ${id}${info.name?' - '+info.name:''}`;}",
+            "function exitDescription(exit){const prefix=exit.outside?'Salida general a ':'';return `${prefix}${mapDisplayName(exit.toMap)} · llegada X${coordinate(exit.toX)}, Y${coordinate(exit.toY)}`;}",
+            "function markerTooltipHtml(hit){const p=hit.point;if(hit.kind==='interior')return `<strong>Entrada a ${escapeHtml(mapDisplayName(p.toMap))}</strong>Mapa ${hit.mapId} · X ${coordinate(p.x)}, Y ${coordinate(p.y)}<br>Llegada X ${coordinate(p.toX)}, Y ${coordinate(p.toY)}<br>Doble clic para abrir`;const layer=hit.layer,isObject=layer.kind==='object',identity=isObject?`Objeto ${p.obj||''}`:`NPC ${p.npc||''}`,title=p.name||p.resourceName||identity,lines=[`${escapeHtml(layer.label)} · Mapa ${hit.mapId}`,`X ${p.x}, Y ${p.y}${identity?' · '+escapeHtml(identity):''}`];if(p.resourceName)lines.push(`Recurso: ${escapeHtml(p.resourceName)}`);if(layer.kind==='quest'){const quests=NPC_QUESTS[p.npc]||[];if(quests.length)lines.push(`Quests: ${quests.map(q=>escapeHtml(q.name)).join(', ')}`);}return `<strong>${escapeHtml(title)}</strong>${lines.join('<br>')}`;}",
+            "function worldPageUrl(mapId=0){mapId=Number(mapId)||0;return `index.html${mapId?`?map=${encodeURIComponent(mapId)}`:''}`;}",
+            "function interiorPageUrl(mapId,origin=0){return `interiores.html?map=${encodeURIComponent(Number(mapId)||0)}&origin=${encodeURIComponent(Number(origin)||0)}`;}",
+            "function goToWorld(mapId=interiorOrigin){location.href=worldPageUrl(mapId);}",
+            "function closeInterior(){if(IS_INTERIOR_PAGE){goToWorld(interiorOrigin);return;}interiorBackdrop.classList.remove('open');interiorBackdrop.setAttribute('aria-hidden','true');interiorCurrent=0;interiorHistory=[];interiorComponent=null;interiorMaps=[];INTERIOR_HITS.length=0;}",
+            "function interiorComponentFor(mapId){const index=INTERIOR_COMPONENT_BY_MAP[Number(mapId)];return Number.isInteger(index)?INTERIOR_COMPONENTS[index]:null;}",
+            "function interiorImage(mapId){if(!INTERIOR_IMAGES[mapId]){const image=new Image();image.onload=scheduleInteriorRender;image.onerror=scheduleInteriorRender;image.src=`minimapas/Mapa${mapId}.webp`;INTERIOR_IMAGES[mapId]=image;}return INTERIOR_IMAGES[mapId];}",
+            "function scheduleInteriorRender(){if(!interiorComponent||interiorRenderPending)return;interiorRenderPending=true;requestAnimationFrame(renderInteriorWorld);}",
+            "function interiorClampScale(value){return Math.min(2,Math.max(.04,value));}",
+            "function applyInterior(){interiorZoomLabel.textContent=`${Math.round(interiorScale*100)}%`;scheduleInteriorRender();}",
+            "function fitInterior(){if(!interiorComponent)return;const pad=32,width=Number(interiorComponent.cols)*TILE_W,height=Number(interiorComponent.rows)*TILE_H;interiorScale=interiorClampScale(Math.min((interiorViewport.clientWidth-pad*2)/width,(interiorViewport.clientHeight-pad*2)/height));interiorPanX=(interiorViewport.clientWidth-width*interiorScale)/2;interiorPanY=(interiorViewport.clientHeight-height*interiorScale)/2;applyInterior();}",
+            "function interiorZoomAt(clientX,clientY,next){next=interiorClampScale(next);const rect=interiorViewport.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top,worldX=(x-interiorPanX)/interiorScale,worldY=(y-interiorPanY)/interiorScale;interiorScale=next;interiorPanX=x-worldX*interiorScale;interiorPanY=y-worldY*interiorScale;applyInterior();}",
+            "function interiorMapItem(mapId){return interiorMaps.find(item=>Number(item.id)===Number(mapId));}",
+            "function centerInteriorMap(mapId,minimum=.35){const item=interiorMapItem(mapId);if(!item)return;interiorScale=Math.max(interiorScale,minimum);interiorPanX=interiorViewport.clientWidth/2-(item.col+.5)*TILE_W*interiorScale;interiorPanY=interiorViewport.clientHeight/2-(item.row+.5)*TILE_H*interiorScale;applyInterior();}",
+            "function drawInteriorCenter(image,item){const padding=imagePadding(image),x0=Math.floor(interiorPanX+item.col*TILE_W*interiorScale),y0=Math.floor(interiorPanY+item.row*TILE_H*interiorScale),x1=Math.ceil(interiorPanX+(item.col+1)*TILE_W*interiorScale),y1=Math.ceil(interiorPanY+(item.row+1)*TILE_H*interiorScale);interiorContext.drawImage(image,padding.x,padding.y,TILE_W,TILE_H,x0,y0,x1-x0,y1-y0);}",
+            "function drawInteriorOverflow(image,item){const padding=imagePadding(image);if(padding.x<=0&&padding.y<=0)return;const drawPart=(sx,sy,sw,sh)=>{if(sw<=0||sh<=0)return;const dx0=Math.floor(interiorPanX+(item.col*TILE_W-padding.x+sx)*interiorScale),dy0=Math.floor(interiorPanY+(item.row*TILE_H-padding.y+sy)*interiorScale),dx1=Math.ceil(interiorPanX+(item.col*TILE_W-padding.x+sx+sw)*interiorScale),dy1=Math.ceil(interiorPanY+(item.row*TILE_H-padding.y+sy+sh)*interiorScale);interiorContext.drawImage(image,sx,sy,sw,sh,dx0,dy0,dx1-dx0,dy1-dy0);};drawPart(0,0,image.naturalWidth,padding.y);drawPart(0,padding.y+TILE_H,image.naturalWidth,padding.y);drawPart(0,padding.y,padding.x,TILE_H);drawPart(padding.x+TILE_W,padding.y,padding.x,TILE_H);}",
+            "function interiorExitOffset(exit){const x=Number(exit.x),y=Number(exit.y),options=[];if(x<=13)options.push([Math.abs(x-13),-1,0]);if(x>=88)options.push([Math.abs(x-88),1,0]);if(y<=10)options.push([Math.abs(y-10),0,-1]);if(y>=91)options.push([Math.abs(y-91),0,1]);options.sort((a,b)=>a[0]-b[0]);return options.length?{dx:options[0][1],dy:options[0][2]}:null;}",
+            "function seamlessInteriorExit(item,exit){if(!exit.border||exit.outside)return false;const destination=interiorMapItem(exit.toMap),offset=interiorExitOffset(exit);return Boolean(destination&&offset&&destination.col===item.col+offset.dx&&destination.row===item.row+offset.dy);}",
+            "function separateInteriorFaceMarker(x,y,width,height,occupied){const gap=Math.max(1,2*interiorScale),originBottom=y+4*interiorScale,makeBox=(cx,bottom)=>({left:cx-width/2-gap,right:cx+width/2+gap,top:bottom-height-gap,bottom:bottom+gap,cx,bottom}),overlaps=box=>occupied.some(other=>box.left<other.right&&box.right>other.left&&box.top<other.bottom&&box.bottom>other.top);let box=makeBox(x,originBottom);if(!overlaps(box)){occupied.push(box);return box;}const nudge=Math.max(4*interiorScale,Math.min(width,height)*.16);for(let attempt=1;attempt<=24;attempt++){const ring=Math.ceil(attempt/8),angle=((attempt-1)%8)*Math.PI/4,distance=nudge*ring,cx=x+Math.cos(angle)*distance,bottom=originBottom+Math.sin(angle)*distance;box=makeBox(cx,bottom);if(!overlaps(box)){occupied.push(box);return box;}}occupied.push(box);return box;}",
+            "function drawInteriorLayers(){const active=LAYERS.filter(layer=>document.getElementById('layer-'+layer.id).checked),occupied=[];if(!active.length)return;interiorMaps.forEach(item=>active.forEach(layer=>(layer.maps[item.id]||[]).forEach(point=>{const x=interiorPanX+(item.col*TILE_W+(point.x-14+.5)*8)*interiorScale,y=interiorPanY+(item.row*TILE_H+(point.y-11+.5)*8)*interiorScale,image=layer.kind==='object'?OBJ_IMAGES[point.iconObj||point.obj]:NPC_IMAGES[point.npc],usesFace=layer.kind!=='object'&&NPC_FACE_ICONS.has(Number(point.npc)),layerScale=(layer.kind==='object'?SETTINGS.objectScale:(usesFace?SETTINGS.faceScale:SETTINGS.bodyScale))/100;if(image&&image.complete&&image.naturalWidth&&interiorScale>=.12){let width=image.naturalWidth*interiorScale*layerScale,height=image.naturalHeight*interiorScale*layerScale,largest=Math.max(width,height),maximum=192*interiorScale;if(largest>maximum){const factor=maximum/largest;width*=factor;height*=factor;}let position={cx:x,bottom:y+4*interiorScale};if(usesFace)position=separateInteriorFaceMarker(x,y,width,height,occupied);interiorContext.save();interiorContext.shadowColor='#000c';interiorContext.shadowBlur=Math.max(1,2*interiorScale);interiorContext.drawImage(image,position.cx-width/2,position.bottom-height,width,height);interiorContext.restore();}else{interiorContext.beginPath();interiorContext.fillStyle=layer.color;interiorContext.strokeStyle='#071015';interiorContext.lineWidth=Math.max(1,1.25*interiorScale);interiorContext.arc(x,y,Math.max(1.5,4.5*interiorScale),0,Math.PI*2);interiorContext.fill();interiorContext.stroke();}})));}",
+            "function drawInteriorLabelsAndCounts(){interiorMaps.forEach(item=>{const left=interiorPanX+item.col*TILE_W*interiorScale,top=interiorPanY+item.row*TILE_H*interiorScale;if(document.getElementById('showAreaNames').checked){const info=MAP_INFO[item.id]||{},fontSize=Math.max(11,Math.min(25,18*Math.sqrt(interiorScale)));interiorContext.save();interiorContext.font=`700 ${fontSize}px 'Segoe UI',Arial,sans-serif`;interiorContext.textAlign='center';interiorContext.textBaseline='top';interiorContext.lineWidth=Math.max(3,fontSize*.16);interiorContext.strokeStyle='#10120fe8';interiorContext.fillStyle='#f5e7b0';const label=`Mapa ${item.id}${info.name?' - '+info.name:''}`;interiorContext.strokeText(label,left+TILE_W*interiorScale/2,top+9*interiorScale);interiorContext.fillText(label,left+TILE_W*interiorScale/2,top+9*interiorScale);interiorContext.restore();}if(document.getElementById('showCounts').checked){let index=0;LAYERS.filter(layer=>document.getElementById('layer-'+layer.id).checked&&(layer.maps[item.id]||[]).length).forEach(layer=>{const count=layer.maps[item.id].length,x=left+TILE_W*interiorScale-18,y=top+18+index*33;interiorContext.beginPath();interiorContext.fillStyle=layer.color;interiorContext.strokeStyle='#ffffff55';interiorContext.arc(x,y,14,0,Math.PI*2);interiorContext.fill();interiorContext.stroke();interiorContext.fillStyle='#fff';interiorContext.font='700 12px Segoe UI';interiorContext.textAlign='center';interiorContext.textBaseline='middle';interiorContext.fillText(String(count),x,y);index++;});}});}",
+            "function drawInteriorTransfers(){INTERIOR_HITS.length=0;if(!document.getElementById('showTransfers').checked)return;interiorMaps.forEach(item=>(MAP_EXITS[item.id]||[]).forEach(exit=>{if(exit.outside||seamlessInteriorExit(item,exit))return;const x=interiorPanX+(item.col*TILE_W+(Number(exit.x)-14+.5)*8)*interiorScale,y=interiorPanY+(item.row*TILE_H+(Number(exit.y)-11+.5)*8)*interiorScale,surface=SURFACE_MAPS.has(Number(exit.toMap))||Number(exit.toMap)<0,radius=Math.max(6,(surface?10:9)*Math.sqrt(interiorScale));interiorContext.beginPath();interiorContext.fillStyle=surface?'#56d28a':'#ffad3b';interiorContext.strokeStyle='#120c04';interiorContext.lineWidth=Math.max(1.5,2.5*interiorScale);interiorContext.arc(x,y,radius,0,Math.PI*2);interiorContext.fill();interiorContext.stroke();interiorContext.fillStyle='#fff';interiorContext.font=`700 ${Math.max(9,12*Math.sqrt(interiorScale))}px Segoe UI`;interiorContext.textAlign='center';interiorContext.textBaseline='middle';interiorContext.fillText('›',x,y-1);INTERIOR_HITS.push({x,y,radius,exit,mapId:item.id});}));}",
+            "function renderInteriorWorld(){interiorRenderPending=false;if(!interiorComponent)return;const dpr=window.devicePixelRatio||1,width=interiorViewport.clientWidth,height=interiorViewport.clientHeight;if(interiorCanvas.width!==Math.round(width*dpr)||interiorCanvas.height!==Math.round(height*dpr)){interiorCanvas.width=Math.round(width*dpr)||1;interiorCanvas.height=Math.round(height*dpr)||1;}interiorContext.setTransform(dpr,0,0,dpr,0,0);interiorContext.clearRect(0,0,width,height);interiorMaps.forEach(item=>{const image=interiorImage(item.id);if(image.complete&&image.naturalWidth)drawInteriorCenter(image,item);});interiorMaps.forEach(item=>{const image=interiorImage(item.id);if(image.complete&&image.naturalWidth)drawInteriorOverflow(image,item);});drawInteriorLayers();drawInteriorLabelsAndCounts();drawInteriorTransfers();const selected=interiorMapItem(interiorCurrent);if(selected){interiorContext.strokeStyle='#49a8ff';interiorContext.lineWidth=4;interiorContext.strokeRect(interiorPanX+selected.col*TILE_W*interiorScale+2,interiorPanY+selected.row*TILE_H*interiorScale+2,TILE_W*interiorScale-4,TILE_H*interiorScale-4);}}",
+            "function interiorHitAt(event){const rect=interiorCanvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;for(let index=INTERIOR_HITS.length-1;index>=0;index--){const hit=INTERIOR_HITS[index];if(Math.hypot(x-hit.x,y-hit.y)<=hit.radius+5)return hit;}return null;}",
+            "function interiorMapAt(event){const rect=interiorCanvas.getBoundingClientRect(),worldX=(event.clientX-rect.left-interiorPanX)/interiorScale,worldY=(event.clientY-rect.top-interiorPanY)/interiorScale,col=Math.floor(worldX/TILE_W),row=Math.floor(worldY/TILE_H);return interiorMaps.find(item=>item.col===col&&item.row===row)||null;}",
+            "function updateInteriorDetails(mapId){interiorCurrent=Number(mapId);const info=MAP_INFO[interiorCurrent]||{},exits=MAP_EXITS[interiorCurrent]||[],componentName=String(info.name||'Interior');interiorTitle.textContent=`${componentName} · ${interiorMaps.length} mapa${interiorMaps.length===1?'':'s'}`;if(IS_INTERIOR_PAGE){document.title=`${mapDisplayName(interiorCurrent)} · Mapa mundo`;history.replaceState(null,'',interiorPageUrl(interiorCurrent,interiorOrigin));}const historyRoute=interiorHistory.map(id=>mapDisplayName(id));interiorBreadcrumb.innerHTML=[`Mundo: ${escapeHtml(mapDisplayName(interiorOrigin))}`,...historyRoute.map(item=>escapeHtml(item)),escapeHtml(mapDisplayName(interiorCurrent))].join(' &rsaquo; ');interiorBack.textContent=interiorHistory.length?'Volver al interior anterior':'Volver al mundo';interiorConnectionsTitle.textContent=`Traslados de ${mapDisplayName(interiorCurrent)}`;interiorConnections.innerHTML='';exits.forEach(exit=>{const destination=Number(exit.toMap),returns=destination<0,surface=SURFACE_MAPS.has(destination),same=Boolean(interiorMapItem(destination)),button=document.createElement('button');button.className='interior-link'+(surface||returns?' surface':'');button.innerHTML=`${escapeHtml(exitDescription(exit))}${same?'<br><small>Mapa unido en esta vista</small>':surface?'<br><small>Regresa a la superficie</small>':returns?'<br><small>Regresa por la entrada utilizada</small>':''}`;button.onclick=()=>followInteriorExit(exit);interiorConnections.appendChild(button);});if(!exits.length)interiorConnections.innerHTML='<span style=\"color:#aeb7bf\">Sin traslados propios. Use el botón Volver.</span>';interiorHint.textContent=`${info.zone||'Interior'} · mapa ${interiorCurrent} seleccionado · doble clic para ver otro mapa o traslado`;scheduleInteriorRender();}",
+            "function followInteriorExit(exit){const destination=Number(exit.toMap);if(destination<0){if(interiorHistory.length){const previous=interiorHistory.pop();showInteriorWorld(previous,false);}else closeInterior();return;}if(SURFACE_MAPS.has(destination)){if(IS_INTERIOR_PAGE)goToWorld(destination);else{closeInterior();focusMap(destination);}return;}if(interiorMapItem(destination)){updateInteriorDetails(destination);centerInteriorMap(destination);return;}showInteriorWorld(destination,true);}",
+            "function showInteriorWorld(mapId,pushHistory=true){mapId=Number(mapId);if(SURFACE_MAPS.has(mapId)){if(IS_INTERIOR_PAGE)goToWorld(mapId);else{closeInterior();focusMap(mapId);}return;}const component=interiorComponentFor(mapId);if(!component)return;if(pushHistory&&interiorCurrent&&INTERIOR_COMPONENT_BY_MAP[interiorCurrent]!==INTERIOR_COMPONENT_BY_MAP[mapId])interiorHistory.push(interiorCurrent);interiorComponent=component;interiorMaps=component.maps.map(item=>({id:Number(item.id),col:Number(item.col),row:Number(item.row)}));syncInteriorLayerControls();updateInteriorDetails(mapId);requestAnimationFrame(fitInterior);}",
+            "function openInterior(sourceMap,exit){const destination=Number(exit.toMap);if(SURFACE_MAPS.has(destination)){focusMap(destination);return;}location.href=interiorPageUrl(destination,sourceMap);}",
+            "function startInteriorPage(){const target=REQUESTED_MAP,component=interiorComponentFor(target);if(!target||!component){goToWorld(REQUESTED_ORIGIN);return;}interiorOrigin=REQUESTED_ORIGIN;interiorCurrent=0;interiorHistory=[];interiorBackdrop.classList.add('open');interiorBackdrop.setAttribute('aria-hidden','false');const closeButton=document.getElementById('closeInterior');closeButton.textContent='\u2190';closeButton.title=closeButton.ariaLabel='Volver al mundo';showInteriorWorld(target,false);closeButton.focus();}",
+            "document.getElementById('closeInterior').onclick=closeInterior;interiorBack.onclick=()=>{if(interiorHistory.length){const previous=interiorHistory.pop();showInteriorWorld(previous,false);}else closeInterior();};interiorBackdrop.addEventListener('pointerdown',event=>{if(!IS_INTERIOR_PAGE&&event.target===interiorBackdrop)closeInterior();});",
+            "document.getElementById('interiorZoomOut').onclick=()=>interiorZoomAt(interiorViewport.getBoundingClientRect().left+interiorViewport.clientWidth/2,interiorViewport.getBoundingClientRect().top+interiorViewport.clientHeight/2,interiorScale/1.2);document.getElementById('interiorZoomIn').onclick=()=>interiorZoomAt(interiorViewport.getBoundingClientRect().left+interiorViewport.clientWidth/2,interiorViewport.getBoundingClientRect().top+interiorViewport.clientHeight/2,interiorScale*1.2);document.getElementById('interiorFit').onclick=fitInterior;document.getElementById('interiorActual').onclick=()=>{interiorScale=1;const item=interiorMapItem(interiorCurrent)||interiorMaps[0];if(item)centerInteriorMap(item.id,1);};",
+            "interiorViewport.addEventListener('wheel',event=>{event.preventDefault();interiorZoomAt(event.clientX,event.clientY,interiorScale*(event.deltaY<0?1.15:1/1.15));},{passive:false});interiorViewport.addEventListener('pointerdown',event=>{if(event.button!==0)return;interiorDragging=true;interiorMoved=false;interiorStartX=event.clientX;interiorStartY=event.clientY;interiorStartPanX=interiorPanX;interiorStartPanY=interiorPanY;interiorViewport.setPointerCapture(event.pointerId);interiorViewport.classList.add('dragging');});interiorViewport.addEventListener('pointermove',event=>{if(interiorDragging){const dx=event.clientX-interiorStartX,dy=event.clientY-interiorStartY;if(Math.abs(dx)+Math.abs(dy)>4)interiorMoved=true;interiorPanX=interiorStartPanX+dx;interiorPanY=interiorStartPanY+dy;applyInterior();return;}const hit=interiorHitAt(event);if(hit)interiorHint.textContent=`${exitDescription(hit.exit)} · doble clic para entrar`;});interiorViewport.addEventListener('pointerup',event=>{interiorDragging=false;interiorViewport.classList.remove('dragging');try{interiorViewport.releasePointerCapture(event.pointerId);}catch(_error){}});interiorViewport.addEventListener('pointercancel',()=>{interiorDragging=false;interiorViewport.classList.remove('dragging');});interiorViewport.addEventListener('dblclick',event=>{if(interiorMoved)return;const hit=interiorHitAt(event);if(hit){event.preventDefault();followInteriorExit(hit.exit);return;}const item=interiorMapAt(event);if(item){event.preventDefault();updateInteriorDetails(item.id);}});",
+            "function hideMarkerTooltip(force=true){if(!force&&pinnedTooltipKey)return;clearTimeout(hoverTimer);hoverTimer=0;hoverKey='';pinnedTooltipKey='';markerTooltip.style.display='none';}",
             "function markerAt(x,y){for(let index=VISIBLE_MARKERS.length-1;index>=0;index--){const marker=VISIBLE_MARKERS[index];if(x>=marker.left&&x<=marker.right&&y>=marker.top&&y<=marker.bottom)return marker;}return null;}",
-            "viewport.addEventListener('pointermove',event=>{if(dragging){hideMarkerTooltip();return;}const hit=markerAt(event.clientX,event.clientY);if(!hit){hideMarkerTooltip();return;}if(hit.key===hoverKey)return;clearTimeout(hoverTimer);markerTooltip.style.display='none';hoverKey=hit.key;const left=Math.min(event.clientX+14,Math.max(8,innerWidth-255)),top=Math.min(event.clientY+14,Math.max(8,innerHeight-120));hoverTimer=setTimeout(()=>{if(hoverKey!==hit.key)return;markerTooltip.innerHTML=markerTooltipHtml(hit);markerTooltip.style.left=`${left}px`;markerTooltip.style.top=`${top}px`;markerTooltip.style.display='block';},SETTINGS.tooltipDelay);});",
-            "viewport.addEventListener('pointerleave',hideMarkerTooltip);viewport.addEventListener('pointerdown',hideMarkerTooltip);viewport.addEventListener('wheel',hideMarkerTooltip,{passive:true});",
+            "function showMarkerTooltip(hit,x,y,pinned=false){clearTimeout(hoverTimer);hoverTimer=0;hoverKey=hit.key;pinnedTooltipKey=pinned?hit.key:'';markerTooltip.innerHTML=markerTooltipHtml(hit);markerTooltip.style.left=`${Math.min(x+14,Math.max(8,innerWidth-255))}px`;markerTooltip.style.top=`${Math.min(y+14,Math.max(8,innerHeight-120))}px`;markerTooltip.style.display='block';}",
+            "viewport.addEventListener('pointermove',event=>{if(dragging){hideMarkerTooltip();return;}if(pinnedTooltipKey)return;const hit=markerAt(event.clientX,event.clientY);if(!hit){hideMarkerTooltip();return;}if(hit.key===hoverKey)return;clearTimeout(hoverTimer);markerTooltip.style.display='none';hoverKey=hit.key;hoverTimer=setTimeout(()=>{if(hoverKey===hit.key&&!pinnedTooltipKey)showMarkerTooltip(hit,event.clientX,event.clientY);},SETTINGS.tooltipDelay);});",
+            "viewport.addEventListener('pointerleave',()=>hideMarkerTooltip(false));viewport.addEventListener('pointerdown',hideMarkerTooltip);viewport.addEventListener('wheel',hideMarkerTooltip,{passive:true});",
             "function layerDetails(layer,id){const points=layer.maps[id]||[];if(!points.length)return '';const rows=points.slice(0,80).map(p=>{let text;if(layer.kind==='object'&&p.iconObj){text=`X ${p.x}, Y ${p.y}: - ${escapeHtml(p.name||('Objeto '+p.obj))}`;if(p.resourceName)text+=` - Recurso: ${escapeHtml(p.resourceName)}`;}else{const identity=layer.kind==='object'?'obj. '+p.obj:'NPC '+p.npc;text=`X ${p.x}, Y ${p.y}: ${identity}${p.name?' - '+escapeHtml(p.name):''}`;}if(layer.kind==='quest'){const offers=NPC_QUESTS[p.npc]||[];offers.forEach(q=>{text+=`<div style=\"margin:4px 0 5px 12px;color:#ddd\"><b>Quest ${q.id}: ${escapeHtml(q.name)}</b><br>${escapeHtml(q.desc)}<br>Nivel ${q.level}${String(q.maxLevel)!=='0'?' a '+q.maxLevel:''} · EXP ${q.exp} · Oro ${q.gold}${String(q.repeatable)!=='0'?' · Repetible':''}</div>`;});}return text;}).join('<br>');return `<strong style=\"color:${layer.color}\">${escapeHtml(layer.label)}: ${points.length}</strong><br>${rows}${points.length>80?'<br>... y '+(points.length-80)+' más':''}`;}",
-            "function showMapDetails(cell){const id=Number(cell.dataset.map),info=MAP_INFO[id]||{},exits=CONNECTIONS[id]||[];document.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));cell.classList.add('selected');details.style.display='block';detailsTitle.textContent=`Mapa ${id}${info.name?' - '+info.name:''}`;const unsafe=Number(info.pk)!==0,safety=`<strong style=\"color:${unsafe?'#ff6565':'#71d99b'}\">${unsafe?'Mapa inseguro':'Mapa seguro'}</strong>`,status=`Zona: ${escapeHtml(info.zone||'Sin dato')} · Terreno: ${escapeHtml(info.terrain||'Sin dato')}<br>Seguridad: ${safety} · Combate: ${unsafe?'PK':'No PK'}${info.restrict?' · Restricción: '+escapeHtml(info.restrict):''}`;const exitHtml=exits.length?`<hr><strong>Conexiones (${exits.length})</strong><br>${exits.map(map=>`<button class=\"go-map\" data-map=\"${map}\">Mapa ${map}</button>`).join(' ')}`:'<hr><strong>Conexiones: 0</strong>';const sections=LAYERS.map(layer=>layerDetails(layer,id)).filter(Boolean);detailsContent.innerHTML=`<div id=\"detailsSummary\">${status}</div><div id=\"detailsExpanded\">${exitHtml}${sections.length?'<hr>'+sections.join('<hr>'):''}</div>`;detailsContent.querySelectorAll('.go-map').forEach(button=>button.onclick=()=>focusMap(Number(button.dataset.map)));}",
+            "function uniqueExits(exits){const seen=new Set();return exits.filter(exit=>{const key=Number(exit.toMap);if(seen.has(key))return false;seen.add(key);return true;});}",
+            "function showMapDetails(cell){const id=Number(cell.dataset.map),info=MAP_INFO[id]||{},exits=MAP_EXITS[id]||[],borderExits=uniqueExits(exits.filter(exit=>exit.border)),interiorExits=uniqueExits(exits.filter(exit=>!exit.border));document.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));cell.classList.add('selected');details.style.display='block';detailsTitle.textContent=mapDisplayName(id);const unsafe=Number(info.pk)!==0,safety=`<strong style=\"color:${unsafe?'#ff6565':'#71d99b'}\">${unsafe?'Mapa inseguro':'Mapa seguro'}</strong>`,status=`Zona: ${escapeHtml(info.zone||'Sin dato')} · Terreno: ${escapeHtml(info.terrain||'Sin dato')}<br>Seguridad: ${safety} · Combate: ${unsafe?'PK':'No PK'}${info.restrict?' · Restricción: '+escapeHtml(info.restrict):''}`,counts=[{label:'Conexiones de borde',count:borderExits.length,color:'#71d99b'},{label:'Entradas internas',count:interiorExits.length,color:'#ffad3b'},...LAYERS.map(layer=>({label:layer.label,count:(layer.maps[id]||[]).length,color:layer.color}))].filter(item=>item.count),countsHtml=counts.length?`<div id=\"detailsCounts\">${counts.map(item=>`<span class=\"detail-count\" style=\"border-color:${item.color}88\">${escapeHtml(item.label)}: ${item.count}</span>`).join('')}</div>`:'',borderHtml=borderExits.length?`<hr><strong>Conexiones de borde (${borderExits.length})</strong><br>${borderExits.map(exit=>`<button class=\"go-map\" data-map=\"${exit.toMap}\">Mapa ${exit.toMap}</button>`).join(' ')}`:'',interiorHtml=interiorExits.length?`<hr><strong>Entradas internas (${interiorExits.length})</strong><br>${interiorExits.map((exit,index)=>`<button class=\"open-interior\" data-index=\"${index}\">${escapeHtml(mapDisplayName(exit.toMap))}</button>`).join(' ')}`:'',sections=LAYERS.map(layer=>layerDetails(layer,id)).filter(Boolean),detailedHtml=SETTINGS.showDetailedLists?`${borderHtml}${interiorHtml}${sections.length?'<hr>'+sections.join('<hr>'):''}`:'<div class=\"details-hint\">Pase el mouse o haga clic sobre un marcador para ver sus datos. F1 permite mostrar los listados completos.</div>';detailsContent.innerHTML=`<div id=\"detailsSummary\">${status}</div><div id=\"detailsExpanded\">${countsHtml}${detailedHtml}</div>`;detailsContent.querySelectorAll('.go-map').forEach(button=>button.onclick=()=>focusMap(Number(button.dataset.map)));detailsContent.querySelectorAll('.open-interior').forEach(button=>button.onclick=()=>openInterior(id,interiorExits[Number(button.dataset.index)]));}",
             "function focusMap(id){const index=mapCells.findIndex(cell=>Number(cell.dataset.map)===Number(id));if(index<0)return;const col=index%COLS,row=Math.floor(index/COLS);scale=Math.max(scale,.35);panX=viewport.clientWidth/2-(col+.5)*TILE_W*scale;panY=viewport.clientHeight/2-(row+.5)*TILE_H*scale;apply();showMapDetails(mapCells[index]);}",
             "function selectMapCell(cell){document.querySelectorAll('.selected').forEach(node=>node.classList.remove('selected'));cell.classList.add('selected');}",
             "function mapCellAt(clientX,clientY){const element=document.elementFromPoint(clientX,clientY);return element?element.closest('.map-cell'):null;}",
-            "mapCells=Array.from(document.querySelectorAll('.map-cell'));mapCells.forEach(cell=>{cell.querySelectorAll('img').forEach(image=>{image.addEventListener('load',scheduleRender);image.addEventListener('error',scheduleRender);});cell.addEventListener('click',()=>{if(!moved)selectMapCell(cell);});});",
-            "viewport.addEventListener('dblclick',event=>{const cell=mapCellAt(event.clientX,event.clientY);if(!cell)return;event.preventDefault();showMapDetails(cell);});",
-            "const search=document.getElementById('search'),searchResults=document.getElementById('search-results');function normalized(value){return String(value).normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();}search.addEventListener('input',()=>{const query=normalized(search.value.trim());searchResults.innerHTML='';if(!query){searchResults.style.display='none';return;}const matches=SEARCH_ITEMS.filter(item=>normalized(item.label+' '+item.type+' '+item.map).includes(query)).slice(0,40);searchResults.style.display='block';matches.forEach(item=>{const button=document.createElement('button');button.className='search-result';button.textContent=`${item.label} (Mapa ${item.map})`;button.onclick=()=>{focusMap(item.map);searchResults.style.display='none';};searchResults.appendChild(button);});if(!matches.length)searchResults.textContent='Sin resultados';});",
-            "addEventListener('keydown',event=>{if(event.key==='F1'){event.preventDefault();settingsBackdrop.classList.contains('open')?closeSettings(true):openSettings();return;}if(event.key==='Escape'){if(settingsBackdrop.classList.contains('open')){closeSettings(true);return;}document.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));details.style.display='none';searchResults.style.display='none';search.blur();hideMarkerTooltip();}});",
-            "addEventListener('resize',()=>{if(scale<0.15)fit();else scheduleRender();});",
-            "centerAtScale(.25);",
+            "mapCells=Array.from(document.querySelectorAll('.map-cell'));mapCells.forEach(cell=>{cell.querySelectorAll('img').forEach(image=>{image.addEventListener('load',scheduleRender);image.addEventListener('error',scheduleRender);});cell.addEventListener('click',()=>{if(!moved)selectMapCell(cell);});});viewport.addEventListener('click',event=>{if(moved)return;const hit=markerAt(event.clientX,event.clientY);if(!hit){hideMarkerTooltip();return;}event.preventDefault();showMarkerTooltip(hit,event.clientX,event.clientY,true);});",
+            "viewport.addEventListener('dblclick',event=>{const hit=markerAt(event.clientX,event.clientY);if(hit&&hit.kind==='interior'){event.preventDefault();hideMarkerTooltip();openInterior(hit.mapId,hit.point);return;}const cell=mapCellAt(event.clientX,event.clientY);if(!cell)return;event.preventDefault();showMapDetails(cell);});",
+            "function normalized(value){return String(value).normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();}",
+            "function navigateToMap(mapId){mapId=Number(mapId);if(SURFACE_MAPS.has(mapId)){if(IS_INTERIOR_PAGE)goToWorld(mapId);else focusMap(mapId);return;}if(IS_INTERIOR_PAGE)showInteriorWorld(mapId,true);else{const selected=document.querySelector('.map-cell.selected'),origin=selected?Number(selected.dataset.map):0;location.href=interiorPageUrl(mapId,origin);}}",
+            "function updateSearch(input,results){const query=normalized(input.value.trim());results.innerHTML='';if(!query){results.style.display='none';return;}const matches=SEARCH_ITEMS.filter(item=>normalized(item.label+' '+item.type+' '+item.map).includes(query)).slice(0,40);results.style.display='block';matches.forEach(item=>{const button=document.createElement('button');button.className='search-result';button.textContent=`${item.label} (Mapa ${item.map})`;button.onclick=()=>{navigateToMap(item.map);results.style.display='none';};results.appendChild(button);});if(!matches.length)results.textContent='Sin resultados';}",
+            "const search=document.getElementById('search'),searchResults=document.getElementById('search-results');search.addEventListener('input',()=>updateSearch(search,searchResults));interiorSearch.addEventListener('input',()=>updateSearch(interiorSearch,interiorSearchResults));",
+            "addEventListener('keydown',event=>{if(event.key==='F1'){event.preventDefault();settingsBackdrop.classList.contains('open')?closeSettings(true):openSettings();return;}if(event.key==='Escape'){if(settingsBackdrop.classList.contains('open')){closeSettings(true);return;}if(interiorBackdrop.classList.contains('open')){closeInterior();return;}document.querySelectorAll('.selected').forEach(n=>n.classList.remove('selected'));details.style.display='none';searchResults.style.display='none';search.blur();hideMarkerTooltip();}});",
+            "addEventListener('resize',()=>{if(!IS_INTERIOR_PAGE){if(scale<0.15)fit();else scheduleRender();}if(interiorComponent)fitInterior();});",
+            "if(IS_INTERIOR_PAGE)startInteriorPage();else{centerAtScale(.25);if(REQUESTED_MAP)requestAnimationFrame(()=>navigateToMap(REQUESTED_MAP));}",
             "</script>",
             "</body>",
             "</html>",
