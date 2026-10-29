@@ -110,14 +110,23 @@ def main() -> int:
         source_minimaps, source_overflows, workspace / "minimapas")
     removed_overflows = remove_legacy_workspace_overflows(
         workspace / "desbordes", migrated_stems)
-    database = resources / "map_content.sqlite"
+    legacy_database = resources / "map_content.sqlite"
+    database = workspace / "map_content.sqlite"
+    database_migrated = 0
     if not database.is_file():
-        raise FileNotFoundError(database)
-    shutil.copy2(database, workspace / "map_content.sqlite")
+        if not legacy_database.is_file():
+            raise FileNotFoundError(
+                f"No existe la base activa {database} ni la copia antigua "
+                f"{legacy_database}"
+            )
+        database.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(legacy_database, database)
+        database_migrated = 1
     print(f"workspace={workspace}")
     print(
         f"minimapas={minimaps} combinados_con_desborde={merged} "
-        f"desbordes_obsoletos_eliminados={removed_overflows} database=1"
+        f"desbordes_obsoletos_eliminados={removed_overflows} "
+        f"database_migrada={database_migrated}"
     )
     return 0
 

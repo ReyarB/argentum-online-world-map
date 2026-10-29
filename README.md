@@ -88,7 +88,7 @@ La ventana continúa editando `mapsworlddata.dat` y exportando `world1.png`,
 web se genera exclusivamente en `dist-web/`.
 
 Para la vista de 27×27 y la exportación del cliente se revisan las carpetas
-`Recursos/Render` y `Recursos/tools_ReyarB/render`. La herramienta descarta las
+`argentum-herramientas/tools_ReyarB/render`. La herramienta descarta las
 copias uniformes, elige la copia válida más reciente y, cuando no usa la ruta
 principal, lo informa como `Respaldo válido` en la barra inferior.
 
