@@ -640,7 +640,11 @@ class AppPaths:
     def _find_render_dir(self, base_dir: Path) -> Optional[Path]:
         candidates: List[Path] = []
         for root in self._candidate_roots(base_dir):
-            candidates.extend([root / "render", root / "tools_ReyarB" / "render"])
+            candidates.extend([
+                root / "render",
+                root / "argentum-herramientas" / "tools_ReyarB" / "render",
+                root.parent / "argentum-herramientas" / "tools_ReyarB" / "render",
+            ])
         for p in candidates:
             if p.is_dir():
                 # Preferir carpetas que realmente tengan BMPs.
@@ -1062,10 +1066,12 @@ class MapaMundoApp(tk.Tk):
         primary = self._folder_for_tile_size(folder)
         candidates = [primary] if primary else []
         if folder == "render":
-            candidates.extend([
-                self.base_dir / "Render",
-                self.base_dir / "tools_ReyarB" / "render",
-            ])
+            for root in self._candidate_roots(self.base_dir):
+                candidates.extend([
+                    root / "render",
+                    root / "argentum-herramientas" / "tools_ReyarB" / "render",
+                    root.parent / "argentum-herramientas" / "tools_ReyarB" / "render",
+                ])
         result: List[Path] = []
         seen: set[str] = set()
         for candidate in candidates:
